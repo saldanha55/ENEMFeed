@@ -98,7 +98,7 @@ export function formatDisplayDate(dateStr: string): string {
   }
 }
 
-export const NICKNAMES = ["Luana", "Lounaz", "Fumiga", "Princesa", "Amor"] as const;
+export const NICKNAMES = ["Luana", "Lounaz", "Fumiga", "Princesa", "Amor", "Amante de Troppo Latte", "amorzíneo", "22ca", "gracinha", "DubelatoGirl", "Gatinha", "fofinha", "razão do meu viver", "auruda", "minha única", "minha preciosa", "minha garota", "minha princesa", "minha gatinha", "neném", "meu bebê", "iposa", "futura esposa", "lindosa", "minha teimosa <3"] as const;
 
 export function getDailyNickname(date: Date = new Date()): string {
   const startOfYear = new Date(date.getFullYear(), 0, 1);

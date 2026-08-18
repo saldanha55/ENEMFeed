@@ -2,6 +2,16 @@
 
 > Micro-learning diário para o ENEM — 10 minutos por dia, estudo de alta qualidade.
 
+---
+
+### 💖 Sobre o Projeto & Dedicação
+
+Este projeto nasceu de uma história real e cheia de carinho: fiz esta versão especialmente para a minha namorada, **Luana**, que estava desesperada e sobrecarregada tentando conciliar a rotina de trabalho com os estudos para o ENEM. 
+
+Pensando nisso, desenvolvi o **ENEMFeed**: um formato 100% *CLT-friendly*, direto ao ponto e sem enrolação, para permitir que ela (e qualquer pessoa na correria do dia a dia) consiga revisar conceitos-chave, vocabulário e resolver questões do ENEM em sessões diárias rápidas de 10 minutos — com streak humanizado sem punições tóxicas! ✨
+
+---
+
 ## Stack
 
 - **Next.js 15** (App Router) + TypeScript

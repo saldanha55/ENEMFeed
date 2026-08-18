@@ -69,11 +69,16 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans`}>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans flex flex-col min-h-screen`}>
         <Header />
-        <main className="max-w-md mx-auto px-4 pt-6 pb-20">
+        <main className="flex-1 max-w-md w-full mx-auto px-4 pt-6 pb-8">
           {children}
         </main>
+        <footer className="max-w-md w-full mx-auto px-4 pb-8 text-center">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
+            Feito com <span className="text-rose-500">❤️</span> para a Luana · Estudo CLT-friendly
+          </p>
+        </footer>
       </body>
     </html>
   );
