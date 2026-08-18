@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6C8EFF"/>
+      <stop offset="100%" stop-color="#D67BFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="42" fill="url(#bg)"/>
+  <!-- Book base -->
+  <rect x="56" y="72" width="80" height="68" rx="6" fill="white" opacity="0.95"/>
+  <!-- Book spine -->
+  <rect x="56" y="72" width="8" height="68" rx="3" fill="white" opacity="0.5"/>
+  <!-- Lines -->
+  <rect x="74" y="90" width="46" height="5" rx="2.5" fill="#6C8EFF" opacity="0.7"/>
+  <rect x="74" y="103" width="38" height="5" rx="2.5" fill="#6C8EFF" opacity="0.5"/>
+  <rect x="74" y="116" width="42" height="5" rx="2.5" fill="#6C8EFF" opacity="0.4"/>
+  <!-- Lightning bolt (spark/energy) -->
+  <polygon points="104,54 94,78 102,78 92,102 112,72 104,72" fill="#FFD700" opacity="0.9"/>
+</svg>
