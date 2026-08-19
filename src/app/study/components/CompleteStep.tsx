@@ -72,12 +72,15 @@ export function CompleteStep({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="space-y-2"
+        className="space-y-1.5"
       >
         <h2 className="text-2xl font-display font-bold text-gray-900 dark:text-white">
           Dia concluído! 🎉
         </h2>
-        <p className="text-gray-600 dark:text-gray-400 text-sm">{scoreMessage}</p>
+        <p className="text-base font-semibold text-gray-800 dark:text-gray-200">
+          Você acertou {score.correct} de {score.total} quest{score.total !== 1 ? "ões" : "ão"}!
+        </p>
+        <p className="text-gray-500 dark:text-gray-400 text-xs">{scoreMessage}</p>
       </motion.div>
 
       {/* Score */}

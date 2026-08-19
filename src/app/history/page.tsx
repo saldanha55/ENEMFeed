@@ -354,6 +354,7 @@ export default function HistoryPage() {
           </div>
 
           <QuestionStep
+            key={localKey}
             question={question}
             questionIndex={currentIndex}
             totalQuestions={wrongs.length}

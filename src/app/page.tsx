@@ -1,8 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { PlayCircle, Calendar, CheckCircle2, Loader2, AlertCircle, RefreshCw, BookOpen } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  PlayCircle,
+  Calendar,
+  CheckCircle2,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  BookOpen,
+  X,
+  Heart,
+} from "lucide-react";
 import { useDailyContent } from "@/hooks/useDailyContent";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +20,7 @@ import { StreakBadge } from "@/components/ui/StreakBadge";
 import { DisciplineBadge } from "@/components/ui/DisciplineBadge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { AnimatedPage } from "@/components/ui/AnimatedPage";
+import { fireHeartBurst } from "@/lib/confetti";
 import {
   getStreak,
   isDayCompleted,
@@ -18,12 +29,20 @@ import {
 import { getTodayString, getYesterdayString, getGreeting, getDisciplinaConfig, getDailyNickname } from "@/lib/utils";
 import type { StreakData } from "@/types";
 
+const isBirthday = () => {
+  const today = new Date();
+  return today.getDate() === 20 && today.getMonth() === 7; // Agosto é índice 7
+};
+
 export default function HomePage() {
   const { content, isLoading, error, refetch, loadSampleContent } = useDailyContent();
   const [streak, setStreak] = useState<StreakData | null>(null);
   const [todayCompleted, setTodayCompleted] = useState(false);
   const [yesterdayCompleted, setYesterdayCompleted] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showBirthdayPhoto, setShowBirthdayPhoto] = useState(true);
+
+  const birthdayToday = mounted && isBirthday();
 
   useEffect(() => {
     setMounted(true);
@@ -32,6 +51,13 @@ export default function HomePage() {
     setStreak(getStreak());
     setTodayCompleted(isDayCompleted(today));
     setYesterdayCompleted(isDayCompleted(yesterday));
+
+    if (isBirthday()) {
+      const timer = setTimeout(() => {
+        fireHeartBurst();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   const greeting = mounted ? getGreeting() : "Olá 👋";
@@ -90,17 +116,82 @@ export default function HomePage() {
   return (
     <AnimatedPage direction="up">
       <div className="space-y-6">
+        {/* Birthday Photo Card Modal/Container */}
+        <AnimatePresence>
+          {birthdayToday && showBirthdayPhoto && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: -8 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+              className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-pink-50 via-rose-50/60 to-white dark:from-pink-950/40 dark:via-purple-950/20 dark:to-gray-900/60 p-4 border border-pink-200/70 dark:border-pink-500/30 shadow-lg shadow-pink-500/10 space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-pink-600 dark:text-pink-300">
+                  <Heart size={14} className="fill-pink-500 text-pink-500 animate-pulse" />
+                  <span>20 de Agosto · Feliz Aniversário!</span>
+                </div>
+                <button
+                  onClick={() => setShowBirthdayPhoto(false)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-pink-100/60 dark:hover:bg-pink-900/30 transition-colors"
+                  aria-label="Fechar foto"
+                  title="Fechar e ir para os estudos"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex justify-center">
+                <img
+                  src="/nois.jpg"
+                  alt="Nós"
+                  onError={(e) => {
+                    if (e.currentTarget.src.endsWith(".jpg")) {
+                      e.currentTarget.src = "/nois.jpeg";
+                    }
+                  }}
+                  className="w-full max-w-[280px] h-auto rounded-2xl mx-auto object-cover shadow-sm"
+                />
+              </div>
+
+              <p className="text-center text-xs text-rose-600 dark:text-rose-300 font-medium">
+                Com todo o meu amor, para a pessoa mais incrível do mundo! 💖
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Greeting */}
         <div className="space-y-1">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">{greeting}</p>
-          <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white tracking-tight">
-            Pronta para{" "}
-            <span style={{ color: config?.color }}>10 minutos</span>,{" "}
-            <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-fuchsia-500 bg-clip-text text-transparent font-extrabold inline-block">
-              {nickname}
-            </span>
-            ?
-          </h1>
+          {birthdayToday ? (
+            <>
+              <p className="text-pink-500 dark:text-pink-400 font-semibold text-sm flex items-center gap-1.5">
+                Feliz aniversário, minha princesa! 💖
+              </p>
+              <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white tracking-tight">
+                Hoje o dia é todo seu,{" "}
+                <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-fuchsia-500 bg-clip-text text-transparent font-extrabold inline-block">
+                  {nickname}
+                </span>
+                ! ✨🎂
+              </h1>
+              <p className="text-xs text-rose-500/90 dark:text-rose-300/90 font-medium">
+                Que o seu dia seja tão doce e especial quanto você é para mim. Te amo! 💕
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">{greeting}</p>
+              <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white tracking-tight">
+                Pronta para{" "}
+                <span style={{ color: config?.color }}>10 minutos</span>,{" "}
+                <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-fuchsia-500 bg-clip-text text-transparent font-extrabold inline-block">
+                  {nickname}
+                </span>
+                ?
+              </h1>
+            </>
+          )}
         </div>
 
         {/* Streak + Stats row */}

@@ -78,6 +78,22 @@ export function getFallbackDailyContent(customDate?: string): DailyContent {
         explicacao_descomplicada:
           "Cada máquina em 8h produz 1.200 / 5 = 240 peças. Cada máquina produz por hora: 240 / 8 = 30 peças/hora. Com 4 máquinas em 6 horas: 4 máquinas × 6 horas × 30 peças/hora = 720 peças.",
       },
+      {
+        id: 4,
+        ano_origem: "ENEM 2023",
+        enunciado:
+          "Um medicamento líquido para uso pediátrico deve ser administrado na dosagem de 3 gotas para cada 2 kg de massa corporal da criança a cada 8 horas. Para uma criança que pesa 16 kg, quantas gotas ela deverá tomar ao longo de um dia inteiro (24 horas)?",
+        alternativas: {
+          A: "24 gotas",
+          B: "48 gotas",
+          C: "72 gotas",
+          D: "96 gotas",
+          E: "144 gotas",
+        },
+        gabarito: "C",
+        explicacao_descomplicada:
+          "Primeiro calculamos as gotas por dose: (16 kg / 2 kg) × 3 gotas = 8 × 3 = 24 gotas por tomada. Em um dia de 24 horas com intervalos de 8 horas, são 24 / 8 = 3 doses. Total no dia: 3 doses × 24 gotas = 72 gotas.",
+      },
     ],
   };
 }
