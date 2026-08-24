@@ -14,24 +14,43 @@ interface CachedData {
   cachedAt: string;
 }
 
-import { inferTopicAndDisciplina, getCurriculumForDate } from "@/lib/curriculum";
+import { getCurriculumForDate } from "@/lib/curriculum";
 
 export function normalizeDailyContent(raw: Record<string, unknown>, fallbackDate: string): DailyContent {
-  const explicitTopico =
+  // Explicit fields from the spreadsheet are ALWAYS the source of truth.
+  // We only fall back to local curriculum inference when the API fields are absent or empty.
+  const explicitTopico = (
     (raw.topico_principal as string) ||
     (raw.topico as string) ||
     (raw.tema as string) ||
     (raw.titulo as string) ||
-    "";
-  const explicitDisciplina = (raw.disciplina as Disciplina) || (raw.materia as Disciplina);
-  const explicitSemana = (raw.semana as string) || "";
+    ""
+  ).trim();
+
+  const explicitDisciplina = (raw.disciplina as Disciplina) || (raw.materia as Disciplina) || null;
+  const explicitSemana = ((raw.semana as string) || "").trim();
+
+  // Only use local fallbacks when the API genuinely didn't provide these fields
+  const hasExplicitMeta = explicitTopico !== "" && explicitDisciplina !== null && explicitSemana !== "";
+
+  let finalTopico: string;
+  let finalDisciplina: Disciplina;
+  let finalSemana: string;
+
+  if (hasExplicitMeta) {
+    // Trust the spreadsheet completely — no inference
+    finalTopico = explicitTopico;
+    finalDisciplina = explicitDisciplina!;
+    finalSemana = explicitSemana;
+  } else {
+    // API didn't return full metadata — use local curriculum as fallback
+    const scheduled = getCurriculumForDate(fallbackDate);
+    finalTopico = explicitTopico !== "" ? explicitTopico : scheduled.topico_principal;
+    finalDisciplina = explicitDisciplina ?? scheduled.disciplina;
+    finalSemana = explicitSemana !== "" ? explicitSemana : scheduled.semana;
+  }
 
   const scheduled = getCurriculumForDate(fallbackDate);
-  const inferred = inferTopicAndDisciplina(raw, fallbackDate);
-
-  const finalTopico = explicitTopico.trim() !== "" ? explicitTopico : inferred.topico_principal;
-  const finalDisciplina = explicitDisciplina || inferred.disciplina;
-  const finalSemana = explicitSemana.trim() !== "" ? explicitSemana : inferred.semana;
 
   const rawQuestoes = Array.isArray(raw.questoes) && raw.questoes.length > 0
     ? raw.questoes

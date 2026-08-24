@@ -723,9 +723,16 @@ export function isDateAvailableForStudy(dateStr: string): boolean {
       return knownSet.has(dateStr);
     }
 
-    // If nothing synced yet, allow today and yesterday
+    // If nothing synced yet, allow today and yesterday (but not Sundays)
     const today = getTodayString();
-    return dateStr === today;
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const yesterday = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    const isYesterdaySunday = d.getDay() === 0;
+
+    if (dateStr === today) return true;
+    if (dateStr === yesterday && !isYesterdaySunday) return true;
+    return false;
   } catch {
     return false;
   }

@@ -69,6 +69,21 @@ export function getYesterdayString(): string {
   return formatDate(d);
 }
 
+/**
+ * Returns the most recent non-Sunday date before today.
+ * On a Sunday, this is Saturday. On a Monday (after Sunday), this is Saturday.
+ * Useful for the "fazer caderno de ontem" flow on Sundays.
+ */
+export function getLastStudyDayString(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  // Skip back past any Sundays
+  while (d.getDay() === 0) {
+    d.setDate(d.getDate() - 1);
+  }
+  return formatDate(d);
+}
+
 export function isSunday(date: Date = new Date()): boolean {
   return date.getDay() === 0;
 }

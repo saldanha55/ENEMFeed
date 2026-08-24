@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { formatDate, parseDateString, getTodayString } from "@/lib/utils";
-import { isDateAvailableForStudy } from "@/lib/curriculum";
+import { isDateAvailableForStudy, CRONOGRAMA_START_DATE } from "@/lib/curriculum";
 import type { PastNotebookItem } from "@/lib/progress";
 
 interface MiniCalendarProps {
@@ -62,6 +62,8 @@ export function MiniCalendar({
   };
 
   // Build grid days
+  const cronogramaStart = useMemo(() => parseDateString(CRONOGRAMA_START_DATE), []);
+
   const calendarDays = useMemo(() => {
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
     const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
@@ -71,6 +73,7 @@ export function MiniCalendar({
       dayNum: number | null;
       dateStr: string | null;
       isSunday: boolean;
+      isRestDay: boolean; // Sunday within cronograma period
       isToday: boolean;
       hasContent: boolean;
       notebook?: PastNotebookItem;
@@ -82,6 +85,7 @@ export function MiniCalendar({
         dayNum: null,
         dateStr: null,
         isSunday: false,
+        isRestDay: false,
         isToday: false,
         hasContent: false,
       });
@@ -93,13 +97,17 @@ export function MiniCalendar({
       const dStr = formatDate(d);
       const isSun = d.getDay() === 0;
       const isToday = dStr === todayStr;
-      const hasContent = isDateAvailableForStudy(dStr);
+      // Sunday is a rest day if it's within (or at) the cronograma start
+      const isRestDay = isSun && d >= cronogramaStart;
+      // hasContent only matters for non-Sunday weekdays
+      const hasContent = !isSun && isDateAvailableForStudy(dStr);
       const notebook = notebookMap.get(dStr);
 
       days.push({
         dayNum: day,
         dateStr: dStr,
         isSunday: isSun,
+        isRestDay,
         isToday,
         hasContent,
         notebook,
@@ -107,7 +115,8 @@ export function MiniCalendar({
     }
 
     return days;
-  }, [currentYear, currentMonth, todayStr, notebookMap]);
+  }, [currentYear, currentMonth, todayStr, notebookMap, cronogramaStart]);
+
 
   // Statistics for this month
   const monthStats = useMemo(() => {
@@ -188,30 +197,35 @@ export function MiniCalendar({
 
           const isSelected = selectedDate === cell.dateStr;
           const isDone = cell.notebook?.isCompleted;
-          const isPending = cell.hasContent && !cell.isSunday && !isDone;
+          const isPending = cell.hasContent && !isDone;
 
           // Determine button style
           let buttonClasses = "relative flex flex-col items-center justify-center h-9 sm:h-10 rounded-2xl text-xs font-semibold transition-all duration-150 ";
 
-          if (!cell.hasContent) {
-            // Days without content: transparent, dark/muted, disabled
+          if (cell.isRestDay) {
+            // Sunday rest day within cronograma — always amber/coffee style
+            if (isSelected) {
+              buttonClasses += "ring-2 ring-offset-2 ring-amber-400 dark:ring-offset-surface-900 scale-105 z-10 ";
+            }
+            buttonClasses += "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300/80 border border-amber-200/50 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 cursor-default";
+            if (cell.isToday) {
+              buttonClasses += " font-extrabold ring-2 ring-amber-400 dark:ring-amber-400";
+            }
+          } else if (!cell.hasContent) {
+            // Weekday without content: muted/disabled
             buttonClasses += "bg-transparent dark:bg-transparent text-gray-300/40 dark:text-gray-700/50 cursor-not-allowed border border-transparent select-none";
           } else {
-            // Days with content
+            // Study day with content
             if (isSelected) {
               buttonClasses += "ring-2 ring-offset-2 ring-primary-500 dark:ring-offset-surface-900 scale-105 z-10 ";
             }
-
-            if (cell.isSunday) {
-              buttonClasses += "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300/80 border border-amber-200/50 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 cursor-pointer";
-            } else if (isDone) {
+            if (isDone) {
               // GREEN for completed
               buttonClasses += "bg-emerald-500 text-white shadow-sm shadow-emerald-500/25 hover:bg-emerald-600 active:scale-95 cursor-pointer";
             } else if (isPending) {
-              // Harmonious soft pending color
+              // Soft pending color
               buttonClasses += "bg-white dark:bg-surface-700 text-gray-800 dark:text-gray-200 border border-surface-200 dark:border-white/10 hover:border-matematica/50 dark:hover:border-matematica/50 hover:bg-surface-100 dark:hover:bg-surface-600 shadow-2xs active:scale-95 cursor-pointer";
             }
-
             if (cell.isToday) {
               buttonClasses += " font-extrabold ring-2 ring-matematica dark:ring-matematica";
             }
@@ -220,20 +234,21 @@ export function MiniCalendar({
           return (
             <button
               key={cell.dateStr}
-              disabled={!cell.hasContent}
+              disabled={!cell.hasContent && !cell.isRestDay}
               onClick={() => {
-                if (cell.dateStr && cell.hasContent) {
+                // Only allow filtering/selection for non-Sunday study days
+                if (cell.dateStr && cell.hasContent && !cell.isRestDay) {
                   onSelectDate(isSelected ? null : cell.dateStr);
                 }
               }}
               title={
-                !cell.hasContent
-                  ? `${cell.dateStr}: Sem conteúdo disponível`
-                  : cell.isSunday
+                cell.isRestDay
                   ? `${cell.dateStr}: Domingo de descanso ☕`
+                  : !cell.hasContent
+                  ? `${cell.dateStr}: Sem conteúdo disponível`
                   : isDone
                   ? `${cell.dateStr}: Concluído (${cell.notebook?.content.topico_principal})`
-                  : `${cell.dateStr}: Pendente (${cell.notebook?.content.topico_principal})`
+                  : `${cell.dateStr}: Pendente`
               }
               className={buttonClasses}
             >
@@ -245,16 +260,17 @@ export function MiniCalendar({
                   <Check size={9} strokeWidth={3} className="text-white" />
                 </div>
               )}
-              {cell.hasContent && cell.isSunday && (
+              {cell.isRestDay && (
                 <div className="absolute -bottom-0.5 text-[8px]">
                   ☕
                 </div>
               )}
               {cell.isToday && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-matematica animate-pulse" />
+                <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${cell.isRestDay ? "bg-amber-400" : "bg-matematica"}`} />
               )}
             </button>
           );
+
         })}
       </div>
 

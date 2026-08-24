@@ -33,10 +33,12 @@ import {
 import {
   getTodayString,
   getYesterdayString,
+  getLastStudyDayString,
   getGreeting,
   getDisciplinaConfig,
   getDailyNickname,
   isSunday,
+  isDateSunday,
   formatDisplayDate,
 } from "@/lib/utils";
 import type { StreakData } from "@/types";
@@ -79,6 +81,8 @@ export default function HomePage() {
   const nickname = mounted ? getDailyNickname() : "Luana";
   const config = content ? getDisciplinaConfig(content.disciplina) : null;
   const yesterday = getYesterdayString();
+  // On Sundays, the "day before" for study purposes is Saturday (or earlier if Saturday is also a rest day)
+  const lastStudyDay = isTodaySunday ? getLastStudyDayString() : yesterday;
 
   if (!mounted || (isLoading && !isTodaySunday)) {
     return (
@@ -255,27 +259,27 @@ export default function HomePage() {
                 </p>
               </div>
 
-              {/* Action: Fazer o do dia anterior (Sábado) */}
+              {/* Action: Fazer o do dia anterior (último dia de estudo = Sábado) */}
               <div className="pt-3 border-t border-surface-200/60 dark:border-white/10 space-y-3">
                 <div className="space-y-1.5">
                   <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Caderno do dia anterior ({formatDisplayDate(yesterday)})
+                    Caderno do último dia de estudo ({formatDisplayDate(lastStudyDay)})
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {yesterdayCompleted
-                      ? "Você já concluiu o caderno de ontem! Quer praticar novamente?"
-                      : "Quer adiantar ou colocar em dia? Complete o caderno de ontem agora!"}
+                    {isDayCompleted(lastStudyDay)
+                      ? `Você já concluiu o caderno de ${formatDisplayDate(lastStudyDay)}! Quer praticar novamente?`
+                      : `Quer adiantar ou colocar em dia? Complete o caderno de ${formatDisplayDate(lastStudyDay)} agora!`}
                   </p>
                 </div>
 
-                <Link href={`/study?date=${encodeURIComponent(yesterday)}`}>
+                <Link href={`/study?date=${encodeURIComponent(lastStudyDay)}`}>
                   <Button
                     fullWidth
-                    variant={yesterdayCompleted ? "secondary" : "primary"}
+                    variant={isDayCompleted(lastStudyDay) ? "secondary" : "primary"}
                     size="lg"
                   >
-                    {yesterdayCompleted ? <RotateCcw size={18} /> : <PlayCircle size={18} />}
-                    {yesterdayCompleted ? "Refazer caderno de ontem" : "Fazer caderno de ontem"}
+                    {isDayCompleted(lastStudyDay) ? <RotateCcw size={18} /> : <PlayCircle size={18} />}
+                    {isDayCompleted(lastStudyDay) ? `Refazer caderno de ${formatDisplayDate(lastStudyDay)}` : `Fazer caderno de ${formatDisplayDate(lastStudyDay)}`}
                   </Button>
                 </Link>
               </div>
@@ -351,7 +355,7 @@ export default function HomePage() {
         )}
 
         {/* Catch-up banner for weekdays */}
-        {!isTodaySunday && canCatchUp && (
+        {!isTodaySunday && canCatchUp && !isDateSunday(yesterday) && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -361,11 +365,11 @@ export default function HomePage() {
               ⏰ Modo Recuperação disponível
             </p>
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              Você perdeu ontem ({formatDisplayDate(yesterday)}). Complete o conteúdo agora para preservar sua ofensiva!
+              Você perdeu o caderno de {formatDisplayDate(yesterday)}. Complete agora para preservar sua ofensiva!
             </p>
             <Link href={`/study?date=${encodeURIComponent(yesterday)}`}>
               <Button variant="secondary" size="sm" fullWidth>
-                Recuperar caderno de ontem
+                Recuperar caderno de {formatDisplayDate(yesterday)}
               </Button>
             </Link>
           </motion.div>

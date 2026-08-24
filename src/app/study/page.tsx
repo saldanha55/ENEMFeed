@@ -14,8 +14,10 @@ import {
   getDisciplinaConfig,
   getTodayString,
   getYesterdayString,
+  getLastStudyDayString,
   formatDisplayDate,
   isSunday,
+  isDateSunday,
 } from "@/lib/utils";
 import {
   markDayCompleted,
@@ -49,11 +51,18 @@ function StudyPageInner() {
   const searchParams = useSearchParams();
   const requestedDate = searchParams.get("date");
   
-  // If today is Sunday and no explicit date is requested, default to yesterday
+  // If today is Sunday and no explicit date requested, default to the last study day (Saturday or earlier)
+  // If today is NOT Sunday but yesterday is Sunday (e.g. Monday), catch-up also uses last study day
   const isTodaySunday = isSunday();
   const todayStr = getTodayString();
   const yesterdayStr = getYesterdayString();
-  const targetDate = requestedDate ?? (isTodaySunday ? yesterdayStr : todayStr);
+  const isYesterdaySunday = isDateSunday(yesterdayStr);
+
+  const targetDate = requestedDate ?? (
+    isTodaySunday || isYesterdaySunday
+      ? getLastStudyDayString()
+      : todayStr
+  );
   const isCatchUp = targetDate !== todayStr;
 
   const [content, setContent] = useState<DailyContent | null>(null);
@@ -192,12 +201,11 @@ function StudyPageInner() {
     );
   }
 
-  const badgeLabel =
-    targetDate === yesterdayStr
+  const badgeLabel = isCatchUp
+    ? targetDate === yesterdayStr && !isDateSunday(yesterdayStr)
       ? "Caderno de Ontem"
-      : isCatchUp
-      ? `Caderno de ${formatDisplayDate(targetDate)}`
-      : null;
+      : `Caderno de ${formatDisplayDate(targetDate)}`
+    : null;
 
   return (
     <div className="space-y-6">
