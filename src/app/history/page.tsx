@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   TrendingUp,
 } from "lucide-react";
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DisciplineBadge } from "@/components/ui/DisciplineBadge";
@@ -196,6 +197,16 @@ function DayCard({ dateKey, record }: { dateKey: string; record: DayRecord }) {
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Redo notebook button */}
+                <div className="pt-1">
+                  <Link href={`/study?date=${encodeURIComponent(dateKey)}`}>
+                    <Button variant="secondary" size="sm" fullWidth>
+                      <RotateCcw size={14} />
+                      Refazer este caderno ({formatDisplayDate(dateKey)})
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </motion.div>

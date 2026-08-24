@@ -12,6 +12,9 @@ import {
   BookOpen,
   X,
   Heart,
+  RotateCcw,
+  Sparkles,
+  Coffee,
 } from "lucide-react";
 import { useDailyContent } from "@/hooks/useDailyContent";
 import { Card } from "@/components/ui/Card";
@@ -25,8 +28,17 @@ import {
   getStreak,
   isDayCompleted,
   getHistory,
+  getAllWrongAnswers,
 } from "@/lib/progress";
-import { getTodayString, getYesterdayString, getGreeting, getDisciplinaConfig, getDailyNickname } from "@/lib/utils";
+import {
+  getTodayString,
+  getYesterdayString,
+  getGreeting,
+  getDisciplinaConfig,
+  getDailyNickname,
+  isSunday,
+  formatDisplayDate,
+} from "@/lib/utils";
 import type { StreakData } from "@/types";
 
 const isBirthday = () => {
@@ -35,12 +47,14 @@ const isBirthday = () => {
 };
 
 export default function HomePage() {
+  const isTodaySunday = isSunday();
   const { content, isLoading, error, refetch, loadSampleContent } = useDailyContent();
   const [streak, setStreak] = useState<StreakData | null>(null);
   const [todayCompleted, setTodayCompleted] = useState(false);
   const [yesterdayCompleted, setYesterdayCompleted] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [showBirthdayPhoto, setShowBirthdayPhoto] = useState(true);
+  const [wrongCount, setWrongCount] = useState(0);
 
   const birthdayToday = mounted && isBirthday();
 
@@ -51,6 +65,7 @@ export default function HomePage() {
     setStreak(getStreak());
     setTodayCompleted(isDayCompleted(today));
     setYesterdayCompleted(isDayCompleted(yesterday));
+    setWrongCount(getAllWrongAnswers().length);
 
     if (isBirthday()) {
       const timer = setTimeout(() => {
@@ -63,8 +78,9 @@ export default function HomePage() {
   const greeting = mounted ? getGreeting() : "Olá 👋";
   const nickname = mounted ? getDailyNickname() : "Luana";
   const config = content ? getDisciplinaConfig(content.disciplina) : null;
+  const yesterday = getYesterdayString();
 
-  if (!mounted || isLoading) {
+  if (!mounted || (isLoading && !isTodaySunday)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 size={32} className="animate-spin text-matematica" />
@@ -73,7 +89,8 @@ export default function HomePage() {
     );
   }
 
-  if (error && !content) {
+  // If today is weekday and error occurred without content
+  if (!isTodaySunday && error && !content) {
     return (
       <AnimatedPage>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-5 text-center px-4">
@@ -103,14 +120,8 @@ export default function HomePage() {
     );
   }
 
-  if (!content) return null;
-
-  const numQuestoes = content.questoes?.length ?? 0;
-  const numPalavras = content.palavras_do_dia?.length ?? 0;
-
   const history = getHistory();
   const completedDays = Object.values(history).filter((r) => r.completedAt).length;
-  const yesterday = getYesterdayString();
   const canCatchUp = !yesterdayCompleted && streak && streak.current > 0;
 
   return (
@@ -179,12 +190,28 @@ export default function HomePage() {
                 Que o seu dia seja tão doce e especial quanto você é para mim. Te amo! 💕
               </p>
             </>
+          ) : isTodaySunday ? (
+            <>
+              <p className="text-amber-500 dark:text-amber-400 font-semibold text-sm flex items-center gap-1.5">
+                <Coffee size={15} /> Domingo de descanso · Relaxe e recarregue!
+              </p>
+              <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white tracking-tight">
+                Bom descanso,{" "}
+                <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-fuchsia-500 bg-clip-text text-transparent font-extrabold inline-block">
+                  {nickname}
+                </span>
+                ! 🌴✨
+              </h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Hoje não há novo conteúdo obrigatório. Aproveite seu dia de folga!
+              </p>
+            </>
           ) : (
             <>
               <p className="text-gray-500 dark:text-gray-400 text-sm">{greeting}</p>
               <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white tracking-tight">
                 Pronta para{" "}
-                <span style={{ color: config?.color }}>10 minutos</span>,{" "}
+                <span style={{ color: config?.color ?? "#6C8EFF" }}>10 minutos</span>,{" "}
                 <span className="bg-gradient-to-r from-pink-500 via-rose-400 to-fuchsia-500 bg-clip-text text-transparent font-extrabold inline-block">
                   {nickname}
                 </span>
@@ -205,104 +232,169 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Main Card — Today */}
-        <Card className="space-y-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="space-y-1">
-              <DisciplineBadge disciplina={content.disciplina} />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{content.semana}</p>
-            </div>
-            {todayCompleted && (
-              <div className="flex items-center gap-1 text-emerald-500 text-xs font-semibold">
-                <CheckCircle2 size={14} />
-                Concluído
+        {/* Main Section: SUNDAY REST DAY */}
+        {isTodaySunday && (
+          <div className="space-y-4">
+            <Card className="space-y-4 bg-gradient-to-br from-amber-50/50 via-white to-surface-50 dark:from-amber-950/20 dark:via-surface-800 dark:to-surface-900 border-amber-200/50 dark:border-amber-500/20">
+              <div className="flex items-start justify-between gap-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-xs font-semibold">
+                  <span>🌴 Domingo Livre</span>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full">
+                  <Sparkles size={13} />
+                  <span>Ofensiva protegida</span>
+                </div>
               </div>
-            )}
+
+              <div>
+                <h2 className="text-lg font-display font-bold text-gray-900 dark:text-white leading-snug">
+                  Dia oficial de recarregar as energias ☕
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
+                  A rotina CLT + estudos exige equilíbrio. Domingo não tem aula obrigatória para você descansar sem culpa!
+                </p>
+              </div>
+
+              {/* Action: Fazer o do dia anterior (Sábado) */}
+              <div className="pt-3 border-t border-surface-200/60 dark:border-white/10 space-y-3">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    Caderno do dia anterior ({formatDisplayDate(yesterday)})
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {yesterdayCompleted
+                      ? "Você já concluiu o caderno de ontem! Quer praticar novamente?"
+                      : "Quer adiantar ou colocar em dia? Complete o caderno de ontem agora!"}
+                  </p>
+                </div>
+
+                <Link href={`/study?date=${encodeURIComponent(yesterday)}`}>
+                  <Button
+                    fullWidth
+                    variant={yesterdayCompleted ? "secondary" : "primary"}
+                    size="lg"
+                  >
+                    {yesterdayCompleted ? <RotateCcw size={18} /> : <PlayCircle size={18} />}
+                    {yesterdayCompleted ? "Refazer caderno de ontem" : "Fazer caderno de ontem"}
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Action: Caderno de Erros ou Histórico */}
+              {wrongCount > 0 && (
+                <div className="pt-2">
+                  <Link href="/history">
+                    <Button variant="secondary" size="sm" fullWidth>
+                      <RotateCcw size={14} />
+                      Treinar no Caderno de Erros ({wrongCount} questões)
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </Card>
           </div>
+        )}
 
-          <div>
-            <h2 className="text-lg font-display font-bold text-gray-900 dark:text-white leading-snug">
-              {content.topico_principal}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {numQuestoes} questões · {numPalavras} palavras
-            </p>
-          </div>
+        {/* Main Card — Weekday */}
+        {!isTodaySunday && content && (
+          <Card className="space-y-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="space-y-1">
+                <DisciplineBadge disciplina={content.disciplina} />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{content.semana}</p>
+              </div>
+              {todayCompleted && (
+                <div className="flex items-center gap-1 text-emerald-500 text-xs font-semibold">
+                  <CheckCircle2 size={14} />
+                  Concluído
+                </div>
+              )}
+            </div>
 
-          {!todayCompleted && (
-            <ProgressBar
-              current={0}
-              total={1}
-              color={config?.color}
-            />
-          )}
-
-          {todayCompleted ? (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Você já completou o conteúdo de hoje 🎉 Volte amanhã!
+            <div>
+              <h2 className="text-lg font-display font-bold text-gray-900 dark:text-white leading-snug">
+                {content.topico_principal}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {content.questoes?.length ?? 0} questões · {content.palavras_do_dia?.length ?? 0} palavras
               </p>
-              <Link href="/history">
-                <Button variant="secondary" fullWidth>
-                  Ver Histórico e Caderno de Erros
+            </div>
+
+            {!todayCompleted && (
+              <ProgressBar
+                current={0}
+                total={1}
+                color={config?.color}
+              />
+            )}
+
+            {todayCompleted ? (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Você já completou o conteúdo de hoje 🎉 Volte amanhã!
+                </p>
+                <Link href="/history">
+                  <Button variant="secondary" fullWidth>
+                    Ver Histórico e Caderno de Erros
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <Link href="/study">
+                <Button fullWidth size="lg">
+                  <PlayCircle size={20} />
+                  Começar estudo
                 </Button>
               </Link>
-            </div>
-          ) : (
-            <Link href="/study">
-              <Button fullWidth size="lg">
-                <PlayCircle size={20} />
-                Começar estudo
-              </Button>
-            </Link>
-          )}
-        </Card>
+            )}
+          </Card>
+        )}
 
-        {/* Catch-up banner */}
-        {canCatchUp && (
+        {/* Catch-up banner for weekdays */}
+        {!isTodaySunday && canCatchUp && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-3xl p-4 bg-amber-50 dark:bg-amber-900/15 border border-amber-200/60 dark:border-amber-500/20"
+            className="rounded-3xl p-4 bg-amber-50 dark:bg-amber-900/15 border border-amber-200/60 dark:border-amber-500/20 space-y-2"
           >
-            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
               ⏰ Modo Recuperação disponível
             </p>
-            <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
-              Você perdeu ontem ({yesterday}). Complete o conteúdo agora para preservar sua ofensiva!
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              Você perdeu ontem ({formatDisplayDate(yesterday)}). Complete o conteúdo agora para preservar sua ofensiva!
             </p>
             <Link href={`/study?date=${encodeURIComponent(yesterday)}`}>
               <Button variant="secondary" size="sm" fullWidth>
-                Recuperar dia de ontem
+                Recuperar caderno de ontem
               </Button>
             </Link>
           </motion.div>
         )}
 
-        {/* Info cards */}
+        {/* Quick review links on Sunday or general */}
         <div className="grid grid-cols-2 gap-3">
-          {[
-            {
-              emoji: "📚",
-              label: "Palavras do dia",
-              value: numPalavras,
-              sub: "para vocabulário",
-            },
-            {
-              emoji: "🎯",
-              label: "Questões ENEM",
-              value: numQuestoes,
-              sub: "para praticar",
-            },
-          ].map(({ emoji, label, value, sub }) => (
-            <Card key={label} className="text-center py-4 px-3">
-              <div className="text-2xl mb-1">{emoji}</div>
-              <div className="text-xl font-display font-bold text-gray-900 dark:text-white">
-                {value}
+          <Link href="/history" className="block">
+            <Card className="text-center py-4 px-3 h-full hover:border-matematica/40 transition-colors">
+              <div className="text-2xl mb-1">📖</div>
+              <div className="text-sm font-display font-bold text-gray-900 dark:text-white">
+                Arquivo de Aulas
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{sub}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {completedDays} cadernos
+              </div>
             </Card>
-          ))}
+          </Link>
+          <Link href="/history" className="block">
+            <Card className="text-center py-4 px-3 h-full hover:border-redacao/40 transition-colors">
+              <div className="text-2xl mb-1">🎯</div>
+              <div className="text-sm font-display font-bold text-gray-900 dark:text-white">
+                Caderno de Erros
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {wrongCount} {wrongCount === 1 ? "questão" : "questões"}
+              </div>
+            </Card>
+          </Link>
         </div>
       </div>
     </AnimatedPage>

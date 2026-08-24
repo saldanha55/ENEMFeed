@@ -69,6 +69,18 @@ export function getYesterdayString(): string {
   return formatDate(d);
 }
 
+export function isSunday(date: Date = new Date()): boolean {
+  return date.getDay() === 0;
+}
+
+export function isDateSunday(dateStr: string): boolean {
+  try {
+    return parseDateString(dateStr).getDay() === 0;
+  } catch {
+    return false;
+  }
+}
+
 export function parseDateString(dateStr: string): Date {
   const [dd, mm, yyyy] = dateStr.split("/").map(Number);
   return new Date(yyyy, mm - 1, dd);
@@ -79,6 +91,30 @@ export function getDaysBetween(d1: string, d2: string): number {
   const date2 = parseDateString(d2);
   const diff = Math.abs(date2.getTime() - date1.getTime());
   return Math.round(diff / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Returns the number of effective study days between two dates,
+ * discounting Sundays (since Sundays are rest days with no mandatory content).
+ */
+export function getEffectiveStudyDaysBetween(d1: string, d2: string): number {
+  const date1 = parseDateString(d1);
+  const date2 = parseDateString(d2);
+  const start = date1 < date2 ? date1 : date2;
+  const end = date1 < date2 ? date2 : date1;
+
+  let count = 0;
+  const current = new Date(start);
+  current.setDate(current.getDate() + 1);
+
+  while (current <= end) {
+    if (current.getDay() !== 0) {
+      count++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return count;
 }
 
 export function getGreeting(): string {

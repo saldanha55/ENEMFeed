@@ -3,25 +3,33 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
-import { useDailyContent } from "@/hooks/useDailyContent";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useStudyProgress } from "@/hooks/useStudyProgress";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { WordsStep } from "./components/WordsStep";
 import { ContextStep } from "./components/ContextStep";
 import { QuestionStep } from "./components/QuestionStep";
 import { CompleteStep } from "./components/CompleteStep";
-import { getDisciplinaConfig } from "@/lib/utils";
+import {
+  getDisciplinaConfig,
+  getTodayString,
+  getYesterdayString,
+  formatDisplayDate,
+  isSunday,
+} from "@/lib/utils";
 import {
   markDayCompleted,
   updateStreak,
   getStreak,
+  getDayRecord,
 } from "@/lib/progress";
-import { getTodayString } from "@/lib/utils";
-import type { StudyStep } from "@/types";
-import { Loader2 } from "lucide-react";
-import { getCachedContent } from "@/lib/api";
-import type { DailyContent } from "@/types";
+import {
+  fetchDailyContent,
+  getCachedContent,
+  isValidDailyContent,
+} from "@/lib/api";
+import { getFallbackDailyContent } from "@/lib/fallback";
+import type { StudyStep, DailyContent } from "@/types";
 
 const STEP_LABELS: Record<StudyStep, string> = {
   words: "Vocabulário",
@@ -33,25 +41,66 @@ const STEP_LABELS: Record<StudyStep, string> = {
 function StudyPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const catchUpDate = searchParams.get("date");
-  const targetDate = catchUpDate ?? getTodayString();
+  const requestedDate = searchParams.get("date");
+  
+  // If today is Sunday and no explicit date is requested, default to yesterday
+  const isTodaySunday = isSunday();
+  const todayStr = getTodayString();
+  const yesterdayStr = getYesterdayString();
+  const targetDate = requestedDate ?? (isTodaySunday ? yesterdayStr : todayStr);
+  const isCatchUp = targetDate !== todayStr;
 
-  const { content: todayContent, isLoading } = useDailyContent();
   const [content, setContent] = useState<DailyContent | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [step, setStep] = useState<StudyStep>("words");
   const [questionIndex, setQuestionIndex] = useState(0);
   const [streak, setStreak] = useState(getStreak().current);
   const { answers, answerQuestion } = useStudyProgress();
 
   useEffect(() => {
-    if (catchUpDate) {
-      // For catch-up: use cached content (same API content but for yesterday's date)
-      const cached = getCachedContent();
-      if (cached) setContent({ ...cached, data: catchUpDate });
-    } else {
-      setContent(todayContent);
+    let cancelled = false;
+    setIsLoading(true);
+
+    // 1. Check if we already have this day stored in history (previous notebook)
+    const historyRec = getDayRecord(targetDate);
+    if (historyRec?.content && isValidDailyContent(historyRec.content)) {
+      if (!cancelled) {
+        setContent(historyRec.content);
+        setIsLoading(false);
+      }
+      return;
     }
-  }, [todayContent, catchUpDate]);
+
+    // 2. Check cached content for target date
+    const cached = getCachedContent(targetDate);
+    if (cached && isValidDailyContent(cached)) {
+      if (!cancelled) {
+        setContent(cached);
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // 3. Fetch from API or fallback
+    fetchDailyContent(targetDate)
+      .then((data) => {
+        if (!cancelled && data && isValidDailyContent(data)) {
+          setContent(data);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          const fallback = getFallbackDailyContent(targetDate);
+          setContent(fallback);
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [targetDate]);
 
   const config = content ? getDisciplinaConfig(content.disciplina) : null;
 
@@ -89,10 +138,17 @@ function StudyPageInner() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 size={32} className="animate-spin text-matematica" />
-        <p className="text-sm text-gray-500 dark:text-gray-400">Carregando...</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Carregando caderno de {formatDisplayDate(targetDate)}...</p>
       </div>
     );
   }
+
+  const badgeLabel =
+    targetDate === yesterdayStr
+      ? "Caderno de Ontem"
+      : isCatchUp
+      ? `Caderno de ${formatDisplayDate(targetDate)}`
+      : null;
 
   return (
     <div className="space-y-6">
@@ -101,7 +157,7 @@ function StudyPageInner() {
         {step !== "complete" && (
           <button
             onClick={() => router.back()}
-            className="w-9 h-9 rounded-xl flex items-center justify-center bg-surface-100 dark:bg-white/10 text-gray-600 dark:text-gray-400 shrink-0"
+            className="w-9 h-9 rounded-xl flex items-center justify-center bg-surface-100 dark:bg-white/10 text-gray-600 dark:text-gray-400 shrink-0 hover:bg-surface-200 dark:hover:bg-white/20 transition-colors"
           >
             <ArrowLeft size={18} />
           </button>
@@ -111,9 +167,9 @@ function StudyPageInner() {
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               {STEP_LABELS[step]}
             </span>
-            {catchUpDate && (
+            {badgeLabel && (
               <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
-                Recuperação
+                {badgeLabel}
               </span>
             )}
           </div>
@@ -175,11 +231,13 @@ function StudyPageInner() {
 
 export default function StudyPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 size={32} className="animate-spin text-matematica" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 size={32} className="animate-spin text-matematica" />
+        </div>
+      }
+    >
       <StudyPageInner />
     </Suspense>
   );

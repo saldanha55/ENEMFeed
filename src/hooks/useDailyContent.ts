@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import type { DailyContent } from "@/types";
 import { fetchDailyContent, getCachedContent, setSampleCachedContent } from "@/lib/api";
+import { getTodayString, isDateSunday } from "@/lib/utils";
 
 interface UseDailyContentResult {
   content: DailyContent | null;
@@ -9,26 +10,38 @@ interface UseDailyContentResult {
   error: string | null;
   refetch: () => void;
   loadSampleContent: () => void;
+  isSunday: boolean;
 }
 
-export function useDailyContent(): UseDailyContentResult {
+export function useDailyContent(targetDate?: string): UseDailyContentResult {
   const [content, setContent] = useState<DailyContent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [trigger, setTrigger] = useState(0);
+
+  const date = targetDate ?? getTodayString();
+  const isTargetSunday = isDateSunday(date);
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setError(null);
 
-    // Show cached content immediately while fetching
-    const cached = getCachedContent();
-    if (cached) {
-      setContent(cached);
+    // If today is Sunday and no explicit targetDate is provided, Sunday is rest day
+    if (isTargetSunday && !targetDate) {
+      setContent(null);
+      setIsLoading(false);
+      return;
     }
 
-    fetchDailyContent()
+    // Check cached content first
+    const cached = getCachedContent(date);
+    if (cached) {
+      setContent(cached);
+      setIsLoading(false);
+    }
+
+    fetchDailyContent(date)
       .then((data) => {
         if (!cancelled) {
           setContent(data);
@@ -37,26 +50,30 @@ export function useDailyContent(): UseDailyContentResult {
       })
       .catch((err: Error) => {
         if (!cancelled) {
-          setError(err.message ?? "Erro ao carregar conteúdo");
-          setIsLoading(false);
+          if (isTargetSunday) {
+            setContent(null);
+            setIsLoading(false);
+          } else {
+            setError(err.message ?? "Erro ao carregar conteúdo");
+            setIsLoading(false);
+          }
         }
       });
 
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trigger]);
+  }, [date, isTargetSunday, trigger, targetDate]);
 
   const refetch = () => setTrigger((t) => t + 1);
 
   const loadSampleContent = () => {
-    const sample = setSampleCachedContent();
+    const sample = setSampleCachedContent(date);
     setContent(sample);
     setError(null);
     setIsLoading(false);
   };
 
-  return { content, isLoading, error, refetch, loadSampleContent };
+  return { content, isLoading, error, refetch, loadSampleContent, isSunday: isTargetSunday };
 }
 

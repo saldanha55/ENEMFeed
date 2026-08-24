@@ -4,7 +4,7 @@ import type {
   DayRecord,
   DailyContent,
 } from "@/types";
-import { getTodayString, getYesterdayString, getDaysBetween } from "@/lib/utils";
+import { getTodayString, getYesterdayString, getDaysBetween, getEffectiveStudyDaysBetween, isDateSunday } from "@/lib/utils";
 
 const HISTORY_KEY = "enem_history";
 const STREAK_KEY = "enem_streak";
@@ -88,10 +88,10 @@ export function saveStreak(data: StreakData): void {
 /**
  * Updates streak when a day is completed.
  *
- * CLT 6x1 Catch-up rule:
- * If the student missed exactly 1 day and completes the missed day's content
- * (yesterday's date) today, the streak is preserved — but this can only be
- * used once per calendar day (catchUpUsedFor tracks the date it was used).
+ * CLT 6x1 Catch-up & Rest Day rules:
+ * - Sundays are rest days (no mandatory study, no streak loss).
+ * - If the student missed 1 study day and completes yesterday's date (or previous study day),
+ *   the streak is preserved.
  */
 export function updateStreak(completedDate: string): StreakData {
   const streak = getStreak();
@@ -107,32 +107,33 @@ export function updateStreak(completedDate: string): StreakData {
   }
 
   const daysDiff = getDaysBetween(streak.lastCompletedDate, completedDate);
+  const effectiveDiff = getEffectiveStudyDaysBetween(streak.lastCompletedDate, completedDate);
 
   if (daysDiff === 0) {
     // Same day re-completion — no change
     return streak;
   }
 
-  if (daysDiff === 1) {
-    // Consecutive — normal increment
+  if (effectiveDiff === 1 || daysDiff === 1) {
+    // Consecutive study days (e.g. Fri -> Sat, or Sat -> Mon across Sunday rest day)
     streak.current += 1;
     streak.lastCompletedDate = completedDate;
   } else if (
-    daysDiff === 2 &&
-    completedDate === yesterday &&
+    (effectiveDiff === 2 || daysDiff === 2) &&
+    (completedDate === yesterday || isDateSunday(today)) &&
     streak.catchUpUsedFor !== today
   ) {
-    // Catch-up: completing yesterday's content after a 1-day gap
-    // Preserve streak, mark catch-up used for today
+    // Catch-up: completing previous day content after a 1-day gap
     streak.catchUpUsedFor = today;
     streak.lastCompletedDate = completedDate;
-    // Don't increment — the gap is forgiven, not counted
-  } else if (daysDiff === 2 && completedDate === today) {
-    // Completing today after missing yesterday (but haven't done catch-up)
+    // Gap is forgiven, keep streak active
+    if (streak.current === 0) streak.current = 1;
+  } else if ((effectiveDiff === 2 || daysDiff === 2) && completedDate === today) {
+    // Completing today after missing 1 day
     streak.current += 1;
     streak.lastCompletedDate = completedDate;
   } else {
-    // Gap > 2 days — reset
+    // Gap > allowed study days — reset to 1
     streak.current = 1;
     streak.lastCompletedDate = completedDate;
     streak.catchUpUsedFor = null;
