@@ -744,7 +744,7 @@ export function getAllCalendarDays(): {
   const knownSet = new Set([...historyDates, ...spreadsheetDates]);
 
   if (knownSet.size === 0) {
-    knownSet.add(getTodayString());
+    return [];
   }
 
   const days: {

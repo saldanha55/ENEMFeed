@@ -97,18 +97,19 @@ function StudyPageInner() {
       return;
     }
 
-    // 3. Fetch from API or fallback
     fetchDailyContent(targetDate)
       .then((data) => {
         if (!cancelled && data && isValidDailyContent(data)) {
           setContent(data);
           setIsLoading(false);
+        } else if (!cancelled) {
+          setIsUnavailable(true);
+          setIsLoading(false);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          const fallback = getFallbackDailyContent(targetDate);
-          setContent(fallback);
+          setIsUnavailable(true);
           setIsLoading(false);
         }
       });

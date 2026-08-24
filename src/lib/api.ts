@@ -147,52 +147,30 @@ export async function fetchDailyContent(targetDate?: string): Promise<DailyConte
     // API failed or returned error message
   }
 
-  // If API didn't return content, generate/retrieve fallback for that specific date
-  const fallback = getFallbackDailyContent(date);
-  saveCachedContent(date, fallback);
-  return fallback;
-}
-
 const AVAILABLE_DATES_KEY = "enem_available_dates";
-
-export function getDefaultSpreadsheetDates(): string[] {
-  const dates: string[] = [];
-  const start = new Date(2026, 7, 13); // 13 de agosto de 2026
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const maxDate = new Date(today);
-  maxDate.setDate(maxDate.getDate() + (today.getDay() === 6 ? 2 : 1));
-
-  const cur = new Date(start);
-  while (cur <= maxDate) {
-    dates.push(formatDate(cur));
-    cur.setDate(cur.getDate() + 1);
-  }
-  return dates;
-}
 
 export function getStoredAvailableDates(): string[] {
   try {
     const raw = localStorage.getItem(AVAILABLE_DATES_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     }
   } catch {
     // ignore
   }
-
-  return getDefaultSpreadsheetDates();
+  return [];
 }
 
 export function saveAvailableDates(dates: string[]): void {
   try {
     const existing = new Set(getStoredAvailableDates());
     for (const d of dates) {
-      if (d && typeof d === "string") existing.add(d);
+      if (d && typeof d === "string" && d.trim() !== "") {
+        existing.add(d.trim());
+      }
     }
     localStorage.setItem(AVAILABLE_DATES_KEY, JSON.stringify(Array.from(existing)));
   } catch {
@@ -202,6 +180,7 @@ export function saveAvailableDates(dates: string[]): void {
 
 export async function syncSpreadsheetDates(): Promise<string[]> {
   try {
+    // 1. Try querying with ?all=true
     const res = await fetch(`${API_URL}?all=true`, { method: "GET", cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
@@ -210,33 +189,51 @@ export async function syncSpreadsheetDates(): Promise<string[]> {
       if (Array.isArray(data)) {
         for (const item of data) {
           if (item?.data && typeof item.data === "string") {
-            discoveredDates.push(item.data);
-            const normalized = normalizeDailyContent(item, item.data);
-            saveCachedContent(item.data, normalized);
+            const d = item.data.trim();
+            discoveredDates.push(d);
+            const normalized = normalizeDailyContent(item, d);
+            saveCachedContent(d, normalized);
           }
         }
       } else if (data && typeof data === "object") {
         const rows = (data.rows || data.items || data.cadernos || data.datas) as Record<string, unknown>[] | undefined;
         if (Array.isArray(rows)) {
           for (const item of rows) {
-            if (typeof item === "string") {
-              discoveredDates.push(item);
+            if (typeof item === "string" && item.trim() !== "") {
+              discoveredDates.push(item.trim());
             } else if (item?.data && typeof item.data === "string") {
-              discoveredDates.push(item.data);
-              const normalized = normalizeDailyContent(item, item.data);
-              saveCachedContent(item.data, normalized);
+              const d = item.data.trim();
+              discoveredDates.push(d);
+              const normalized = normalizeDailyContent(item, d);
+              saveCachedContent(d, normalized);
             }
           }
         } else if (typeof data.data === "string") {
-          discoveredDates.push(data.data);
-          const normalized = normalizeDailyContent(data, data.data);
-          saveCachedContent(data.data, normalized);
+          const d = data.data.trim();
+          discoveredDates.push(d);
+          const normalized = normalizeDailyContent(data, d);
+          saveCachedContent(d, normalized);
         }
       }
 
       if (discoveredDates.length > 0) {
         saveAvailableDates(discoveredDates);
         return Array.from(new Set([...getStoredAvailableDates(), ...discoveredDates]));
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2. Also try fetching default endpoint without params to discover today's entry
+  try {
+    const todayRes = await fetch(API_URL, { method: "GET", cache: "no-store" });
+    if (todayRes.ok) {
+      const todayData = await todayRes.json();
+      if (isValidDailyContent(todayData)) {
+        const dateKey = (todayData.data as string) || getTodayString();
+        saveCachedContent(dateKey, normalizeDailyContent(todayData, dateKey));
+        saveAvailableDates([dateKey]);
       }
     }
   } catch {
