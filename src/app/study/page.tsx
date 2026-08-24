@@ -30,6 +30,13 @@ import {
 } from "@/lib/api";
 import { getFallbackDailyContent } from "@/lib/fallback";
 import type { StudyStep, DailyContent } from "@/types";
+import {
+  isDateAvailableForStudy,
+} from "@/lib/curriculum";
+import { Lock, BookOpen } from "lucide-react";
+import Link from "next/link";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 const STEP_LABELS: Record<StudyStep, string> = {
   words: "Vocabulário",
@@ -52,6 +59,7 @@ function StudyPageInner() {
 
   const [content, setContent] = useState<DailyContent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUnavailable, setIsUnavailable] = useState(false);
   const [step, setStep] = useState<StudyStep>("words");
   const [questionIndex, setQuestionIndex] = useState(0);
   const [streak, setStreak] = useState(getStreak().current);
@@ -60,6 +68,14 @@ function StudyPageInner() {
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
+    setIsUnavailable(false);
+
+    // Check if requested date is within allowed study range
+    if (!isDateAvailableForStudy(targetDate)) {
+      setIsUnavailable(true);
+      setIsLoading(false);
+      return;
+    }
 
     // 1. Check if we already have this day stored in history (previous notebook)
     const historyRec = getDayRecord(targetDate);
@@ -101,6 +117,39 @@ function StudyPageInner() {
       cancelled = true;
     };
   }, [targetDate]);
+
+  if (isUnavailable) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+        <Card className="max-w-sm w-full p-6 space-y-4 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-surface-100 dark:bg-white/10 flex items-center justify-center mx-auto text-gray-500 dark:text-gray-400">
+            <Lock size={26} />
+          </div>
+          <div>
+            <h2 className="text-lg font-display font-bold text-gray-900 dark:text-white">
+              Caderno não disponível
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed">
+              O conteúdo para o dia <strong>{formatDisplayDate(targetDate)}</strong> ainda não foi liberado. O cronograma libera o conteúdo até o dia atual e no máximo o próximo dia de estudos.
+            </p>
+          </div>
+          <div className="space-y-2 pt-2">
+            <Link href="/" className="block">
+              <Button fullWidth size="md">
+                <BookOpen size={16} />
+                Ir para o caderno de hoje
+              </Button>
+            </Link>
+            <Link href="/history" className="block">
+              <Button variant="secondary" fullWidth size="md">
+                Ver cadernos anteriores
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   const config = content ? getDisciplinaConfig(content.disciplina) : null;
 

@@ -5,16 +5,46 @@ import type {
   DailyContent,
 } from "@/types";
 import { getTodayString, getYesterdayString, getDaysBetween, getEffectiveStudyDaysBetween, isDateSunday } from "@/lib/utils";
+import { inferTopicAndDisciplina, getAllCalendarDays } from "@/lib/curriculum";
 
 const HISTORY_KEY = "enem_history";
 const STREAK_KEY = "enem_streak";
 
 // ─── History ────────────────────────────────────────────────────────────────
 
+export function sanitizeDayRecord(date: string, record: DayRecord): DayRecord {
+  if (!record || !record.content) return record;
+  // If topico_principal is generic or incorrect, fix it with inferTopicAndDisciplina
+  if (
+    !record.content.topico_principal ||
+    record.content.topico_principal === "Decomposição de Figuras e Áreas" ||
+    record.content.topico_principal === "Conteúdo do Dia"
+  ) {
+    const inferred = inferTopicAndDisciplina(record.content as unknown as Record<string, unknown>, date);
+    record.content.topico_principal = inferred.topico_principal;
+    record.content.disciplina = inferred.disciplina;
+    record.content.semana = inferred.semana;
+  }
+  return record;
+}
+
 export function getHistory(): HistoryRecord {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed: HistoryRecord = JSON.parse(raw);
+    let changed = false;
+    for (const [date, record] of Object.entries(parsed)) {
+      const sanitized = sanitizeDayRecord(date, record);
+      if (sanitized !== record) {
+        parsed[date] = sanitized;
+        changed = true;
+      }
+    }
+    if (changed) {
+      saveHistory(parsed);
+    }
+    return parsed;
   } catch {
     return {};
   }
@@ -30,7 +60,8 @@ export function saveHistory(history: HistoryRecord): void {
 
 export function getDayRecord(date: string): DayRecord | null {
   const history = getHistory();
-  return history[date] ?? null;
+  const rec = history[date];
+  return rec ? sanitizeDayRecord(date, rec) : null;
 }
 
 export function saveDayRecord(date: string, record: DayRecord): void {
@@ -200,4 +231,38 @@ export function calculateScore(
     percentage: total > 0 ? Math.round((correct / total) * 100) : 0,
   };
 }
+
+export interface PastNotebookItem {
+  date: string;
+  isSunday: boolean;
+  isCompleted: boolean;
+  content: DailyContent;
+  record: DayRecord | null;
+  score: { correct: number; total: number; percentage: number } | null;
+}
+
+export function getAllPastNotebooks(): PastNotebookItem[] {
+  const history = getHistory();
+  const calendarDays = getAllCalendarDays();
+
+  return calendarDays.map(({ date, isSunday, content }) => {
+    const record = history[date] ? sanitizeDayRecord(date, history[date]) : null;
+    const isCompleted = record !== null && !!record.completedAt;
+    const effectiveContent = record?.content ?? content;
+    const score = isCompleted && record
+      ? calculateScore(record.answers, effectiveContent.questoes)
+      : null;
+
+    return {
+      date,
+      isSunday,
+      isCompleted,
+      content: effectiveContent,
+      record,
+      score,
+    };
+  });
+}
+
+
 
