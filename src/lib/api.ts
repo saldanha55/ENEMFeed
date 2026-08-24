@@ -1,4 +1,4 @@
-import type { DailyContent } from "@/types";
+import type { DailyContent, Disciplina } from "@/types";
 import { getTodayString, isDateSunday, formatDate } from "@/lib/utils";
 import { getFallbackDailyContent } from "@/lib/fallback";
 import { getDayRecord } from "@/lib/progress";
@@ -17,8 +17,21 @@ interface CachedData {
 import { inferTopicAndDisciplina, getCurriculumForDate } from "@/lib/curriculum";
 
 export function normalizeDailyContent(raw: Record<string, unknown>, fallbackDate: string): DailyContent {
-  const inferred = inferTopicAndDisciplina(raw, fallbackDate);
+  const explicitTopico =
+    (raw.topico_principal as string) ||
+    (raw.topico as string) ||
+    (raw.tema as string) ||
+    (raw.titulo as string) ||
+    "";
+  const explicitDisciplina = (raw.disciplina as Disciplina) || (raw.materia as Disciplina);
+  const explicitSemana = (raw.semana as string) || "";
+
   const scheduled = getCurriculumForDate(fallbackDate);
+  const inferred = inferTopicAndDisciplina(raw, fallbackDate);
+
+  const finalTopico = explicitTopico.trim() !== "" ? explicitTopico : inferred.topico_principal;
+  const finalDisciplina = explicitDisciplina || inferred.disciplina;
+  const finalSemana = explicitSemana.trim() !== "" ? explicitSemana : inferred.semana;
 
   const rawQuestoes = Array.isArray(raw.questoes) && raw.questoes.length > 0
     ? raw.questoes
@@ -30,9 +43,9 @@ export function normalizeDailyContent(raw: Record<string, unknown>, fallbackDate
 
   return {
     data: (raw.data as string) || fallbackDate,
-    semana: inferred.semana,
-    disciplina: inferred.disciplina,
-    topico_principal: inferred.topico_principal,
+    semana: finalSemana,
+    disciplina: finalDisciplina,
+    topico_principal: finalTopico,
     contexto_visual: (raw.contexto_visual as string) || scheduled.contexto_visual,
     canivete_repertorio: (raw.canivete_repertorio as string) || scheduled.canivete_repertorio,
     palavras_do_dia: rawPalavras,
