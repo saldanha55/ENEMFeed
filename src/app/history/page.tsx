@@ -328,7 +328,7 @@ function NotebookCard({ item }: { item: PastNotebookItem }) {
   );
 }
 
-import { syncSpreadsheetDates } from "@/lib/api";
+import { syncSpreadsheetDates, getCachedContent, isValidDailyContent } from "@/lib/api";
 
 export default function HistoryPage() {
   const [activeTab, setActiveTab] = useState<TabId>("arquivo");
@@ -346,11 +346,29 @@ export default function HistoryPage() {
 
   useEffect(() => {
     setMounted(true);
-    setNotebooks(getAllPastNotebooks());
     setWrongAnswers(getAllWrongAnswers());
 
+    // Helper: enrich notebook list with real planilha content from cache
+    // (getAllPastNotebooks uses getCurriculumForDate for pending notebooks, which is the local
+    // curriculum and may not match the spreadsheet. We override with the cached planilha content.)
+    function enrichWithCachedContent(nbs: PastNotebookItem[]): PastNotebookItem[] {
+      return nbs.map((nb) => {
+        if (nb.isSunday) return nb;
+        const planilhaContent = getCachedContent(nb.date);
+        if (planilhaContent && isValidDailyContent(planilhaContent)) {
+          return { ...nb, content: planilhaContent };
+        }
+        return nb;
+      });
+    }
+
+    const initial = getAllPastNotebooks();
+    setNotebooks(enrichWithCachedContent(initial));
+
     syncSpreadsheetDates().then(() => {
-      setNotebooks(getAllPastNotebooks());
+      const updated = getAllPastNotebooks();
+      setNotebooks(enrichWithCachedContent(updated));
+      setWrongAnswers(getAllWrongAnswers());
     });
   }, []);
 
