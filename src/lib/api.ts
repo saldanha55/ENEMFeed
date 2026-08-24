@@ -6,8 +6,10 @@ import { getDayRecord } from "@/lib/progress";
 const API_URL =
   "https://script.google.com/macros/s/AKfycbyucNEaUN1uBd18Fea-qomNGjCqD9RJjlRIKBxyNYSMKWlA3YEYVbNEV9F1Nep8Hcu_/exec";
 
-const CACHE_KEY = "enem_cached_content";
-const CACHE_DATE_KEY = "enem_cached_date";
+// Bump this version whenever normalization logic changes, to force cache invalidation.
+const CACHE_VERSION = "v2";
+const CACHE_KEY = `enem_cached_content_${CACHE_VERSION}`;
+const CACHE_DATE_KEY = `enem_cached_date_${CACHE_VERSION}`;
 
 interface CachedData {
   content: DailyContent;
@@ -85,27 +87,25 @@ export function isValidDailyContent(data: unknown): boolean {
 export function getCachedContent(targetDate?: string): DailyContent | null {
   const date = targetDate ?? getTodayString();
   try {
-    // 1. Check history first
-    const fromHistory = getDayRecord(date);
-    if (fromHistory?.content && isValidDailyContent(fromHistory.content)) {
-      return fromHistory.content;
-    }
-
-    // 2. Check date-specific cache
-    const rawSpecific = localStorage.getItem(`enem_content_${date}`);
+    // 1. Check date-specific versioned cache
+    const rawSpecific = localStorage.getItem(`enem_content_${CACHE_VERSION}_${date}`);
     if (rawSpecific) {
-      const cached = JSON.parse(rawSpecific);
-      if (isValidDailyContent(cached)) return cached;
+      const cached = JSON.parse(rawSpecific) as Record<string, unknown>;
+      if (isValidDailyContent(cached)) {
+        // Always re-normalize to ensure cover metadata is correct
+        return normalizeDailyContent(cached, date);
+      }
     }
 
-    // 3. Check general cache if date matches today
+    // 2. Check general versioned cache if date matches today
     const cachedDate = localStorage.getItem(CACHE_DATE_KEY);
     if (cachedDate === date) {
       const raw = localStorage.getItem(CACHE_KEY);
       if (raw) {
         const cached: CachedData = JSON.parse(raw);
         if (isValidDailyContent(cached?.content)) {
-          return cached.content;
+          // Always re-normalize to ensure cover metadata is correct
+          return normalizeDailyContent(cached.content as unknown as Record<string, unknown>, date);
         }
       }
     }
@@ -117,7 +117,7 @@ export function getCachedContent(targetDate?: string): DailyContent | null {
 
 export function saveCachedContent(date: string, content: DailyContent): void {
   try {
-    localStorage.setItem(`enem_content_${date}`, JSON.stringify(content));
+    localStorage.setItem(`enem_content_${CACHE_VERSION}_${date}`, JSON.stringify(content));
     if (date === getTodayString()) {
       const cached: CachedData = { content, cachedAt: date };
       localStorage.setItem(CACHE_KEY, JSON.stringify(cached));

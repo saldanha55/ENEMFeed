@@ -29,6 +29,7 @@ import {
   fetchDailyContent,
   getCachedContent,
   isValidDailyContent,
+  normalizeDailyContent,
 } from "@/lib/api";
 import type { StudyStep, DailyContent } from "@/types";
 import {
@@ -86,16 +87,21 @@ function StudyPageInner() {
     }
 
     // 1. Check if we already have this day stored in history (previous notebook)
+    // Always re-normalize to ensure cover metadata (title/discipline) is up-to-date
     const historyRec = getDayRecord(targetDate);
     if (historyRec?.content && isValidDailyContent(historyRec.content)) {
+      const reNormalized = normalizeDailyContent(
+        historyRec.content as unknown as Record<string, unknown>,
+        targetDate
+      );
       if (!cancelled) {
-        setContent(historyRec.content);
+        setContent(reNormalized);
         setIsLoading(false);
       }
       return;
     }
 
-    // 2. Check cached content for target date
+    // 2. Check cached content (getCachedContent already re-normalizes internally)
     const cached = getCachedContent(targetDate);
     if (cached && isValidDailyContent(cached)) {
       if (!cancelled) {
