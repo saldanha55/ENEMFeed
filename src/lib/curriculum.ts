@@ -1,5 +1,5 @@
 import type { DailyContent, Disciplina } from "@/types";
-import { parseDateString, formatDate, isDateSunday, getTodayString } from "@/lib/utils";
+import { parseDateString, isDateSunday, getTodayString } from "@/lib/utils";
 
 export interface ScheduledTopic {
   disciplina: Disciplina;

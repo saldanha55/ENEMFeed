@@ -118,6 +118,28 @@ function StudyPageInner() {
     };
   }, [targetDate]);
 
+  const config = content ? getDisciplinaConfig(content.disciplina) : null;
+
+  const handleWordsComplete = useCallback(() => setStep("context"), []);
+  const handleContextComplete = useCallback(() => setStep("questions"), []);
+  const handleAnswer = useCallback(
+    (questionId: number, answer: string) => answerQuestion(questionId, answer),
+    [answerQuestion]
+  );
+
+  const handleNextQuestion = useCallback(() => {
+    if (!content || !content.questoes) return;
+    if (questionIndex + 1 < content.questoes.length) {
+      setQuestionIndex((i) => i + 1);
+    } else {
+      // All questions done — save and go to complete
+      markDayCompleted(targetDate, content, answers);
+      const newStreak = updateStreak(targetDate);
+      setStreak(newStreak.current);
+      setStep("complete");
+    }
+  }, [content, questionIndex, answers, targetDate]);
+
   if (isUnavailable) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
@@ -151,8 +173,6 @@ function StudyPageInner() {
     );
   }
 
-  const config = content ? getDisciplinaConfig(content.disciplina) : null;
-
   // Progress: words=1/4, context=2/4, questions depends on question index, complete=4/4
   const getProgress = () => {
     if (step === "words") return 1;
@@ -162,26 +182,6 @@ function StudyPageInner() {
     return 4;
   };
   const totalProgress = 4;
-
-  const handleWordsComplete = useCallback(() => setStep("context"), []);
-  const handleContextComplete = useCallback(() => setStep("questions"), []);
-  const handleAnswer = useCallback(
-    (questionId: number, answer: string) => answerQuestion(questionId, answer),
-    [answerQuestion]
-  );
-
-  const handleNextQuestion = useCallback(() => {
-    if (!content || !content.questoes) return;
-    if (questionIndex + 1 < content.questoes.length) {
-      setQuestionIndex((i) => i + 1);
-    } else {
-      // All questions done — save and go to complete
-      markDayCompleted(targetDate, content, answers);
-      const newStreak = updateStreak(targetDate);
-      setStreak(newStreak.current);
-      setStep("complete");
-    }
-  }, [content, questionIndex, answers, targetDate]);
 
   if (isLoading || !content || !config || !Array.isArray(content.questoes) || content.questoes.length === 0) {
     return (

@@ -15,9 +15,7 @@ import {
   Search,
   X,
   PlayCircle,
-  Filter,
   Check,
-  Coffee,
   Sparkles,
   Layers,
 } from "lucide-react";

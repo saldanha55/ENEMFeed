@@ -1,4 +1,4 @@
-import type { DailyContent, Disciplina } from "@/types";
+import type { DailyContent } from "@/types";
 import { getTodayString, isDateSunday, formatDate } from "@/lib/utils";
 import { getFallbackDailyContent } from "@/lib/fallback";
 import { getDayRecord } from "@/lib/progress";
