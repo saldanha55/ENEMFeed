@@ -27,8 +27,6 @@ import {
   fetchDailyContent,
   getCachedContent,
   isValidDailyContent,
-} from "@/lib/api";
-import { getFallbackDailyContent } from "@/lib/fallback";
 import type { StudyStep, DailyContent } from "@/types";
 import {
   isDateAvailableForStudy,
