@@ -27,6 +27,7 @@ import {
   fetchDailyContent,
   getCachedContent,
   isValidDailyContent,
+} from "@/lib/api";
 import type { StudyStep, DailyContent } from "@/types";
 import {
   isDateAvailableForStudy,
