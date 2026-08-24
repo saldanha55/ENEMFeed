@@ -141,11 +141,15 @@ export async function fetchDailyContent(targetDate?: string): Promise<DailyConte
     if (isValidDailyContent(rawData)) {
       const data = normalizeDailyContent(rawData as Record<string, unknown>, date);
       saveCachedContent(date, data);
+      saveAvailableDates([date]);
       return data;
     }
   } catch {
     // API failed or returned error message
   }
+
+  throw new Error("Conteúdo não encontrado para esta data na planilha.");
+}
 
 const AVAILABLE_DATES_KEY = "enem_available_dates";
 
@@ -196,15 +200,17 @@ export async function syncSpreadsheetDates(): Promise<string[]> {
           }
         }
       } else if (data && typeof data === "object") {
-        const rows = (data.rows || data.items || data.cadernos || data.datas) as Record<string, unknown>[] | undefined;
+        const rows = (data.rows || data.items || data.cadernos || data.datas) as
+          | (Record<string, unknown> | string)[]
+          | undefined;
         if (Array.isArray(rows)) {
           for (const item of rows) {
             if (typeof item === "string" && item.trim() !== "") {
               discoveredDates.push(item.trim());
-            } else if (item?.data && typeof item.data === "string") {
+            } else if (item && typeof item === "object" && typeof item.data === "string") {
               const d = item.data.trim();
               discoveredDates.push(d);
-              const normalized = normalizeDailyContent(item, d);
+              const normalized = normalizeDailyContent(item as Record<string, unknown>, d);
               saveCachedContent(d, normalized);
             }
           }
