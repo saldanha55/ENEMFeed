@@ -1,13 +1,12 @@
-import type { DailyContent, Disciplina } from "@/types";
+import type { DailyContent, Disciplina, Question, VisualContent } from "@/types";
 import { getTodayString, isDateSunday } from "@/lib/utils";
 import { getFallbackDailyContent } from "@/lib/fallback";
-import { getDayRecord } from "@/lib/progress";
 
 const API_URL =
   "https://script.google.com/macros/s/AKfycbyucNEaUN1uBd18Fea-qomNGjCqD9RJjlRIKBxyNYSMKWlA3YEYVbNEV9F1Nep8Hcu_/exec";
 
 // Bump this version whenever normalization logic changes, to force cache invalidation.
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const CACHE_KEY = `enem_cached_content_${CACHE_VERSION}`;
 const CACHE_DATE_KEY = `enem_cached_date_${CACHE_VERSION}`;
 
@@ -17,6 +16,38 @@ interface CachedData {
 }
 
 import { getCurriculumForDate } from "@/lib/curriculum";
+
+export function normalizeVisual(rawVisual: unknown): VisualContent | null {
+  if (!rawVisual) return null;
+
+  if (typeof rawVisual === "object") {
+    const v = rawVisual as Record<string, unknown>;
+    const tipo = String(v.tipo || v.type || "").toLowerCase().trim();
+    const conteudo = String(v.conteudo || v.content || v.url || v.svg || "").trim();
+    const legenda = String(v.legenda || v.caption || v.descricao || "").trim();
+
+    if (tipo === "svg" || tipo === "imagem") {
+      if (!conteudo) return null;
+      return {
+        tipo: tipo as "svg" | "imagem",
+        conteudo,
+        legenda: legenda || undefined,
+      };
+    }
+  }
+
+  if (typeof rawVisual === "string") {
+    const str = rawVisual.trim();
+    if (str.startsWith("<svg") || str.includes("<svg")) {
+      return { tipo: "svg", conteudo: str };
+    }
+    if (str.startsWith("http://") || str.startsWith("https://") || str.startsWith("data:image/")) {
+      return { tipo: "imagem", conteudo: str };
+    }
+  }
+
+  return null;
+}
 
 export function normalizeDailyContent(raw: Record<string, unknown>, fallbackDate: string): DailyContent {
   // Explicit fields from the spreadsheet are ALWAYS the source of truth.
@@ -62,15 +93,40 @@ export function normalizeDailyContent(raw: Record<string, unknown>, fallbackDate
     ? raw.palavras_do_dia
     : scheduled.palavras_do_dia;
 
+  const normalizedQuestoes: Question[] = (rawQuestoes as Record<string, unknown>[]).map((q, idx) => {
+    const rawQVisual = q.visual || q.imagem_url || q.imagem || null;
+    const visual = normalizeVisual(rawQVisual);
+
+    return {
+      id: typeof q.id === "number" ? q.id : idx + 1,
+      ano_origem: (q.ano_origem as string) || "ENEM",
+      enunciado: (q.enunciado as string) || "",
+      visual,
+      alternativas: (q.alternativas as Question["alternativas"]) || {
+        A: "",
+        B: "",
+        C: "",
+        D: "",
+        E: "",
+      },
+      gabarito: (q.gabarito as Question["gabarito"]) || "A",
+      explicacao_descomplicada: (q.explicacao_descomplicada as string) || "",
+    };
+  });
+
+  const rawContextVisual = raw.visual || raw.contexto_visual_grafico || null;
+  const contextVisual = normalizeVisual(rawContextVisual);
+
   return {
     data: (raw.data as string) || fallbackDate,
     semana: finalSemana,
     disciplina: finalDisciplina,
     topico_principal: finalTopico,
     contexto_visual: (raw.contexto_visual as string) || scheduled.contexto_visual,
+    visual: contextVisual,
     canivete_repertorio: (raw.canivete_repertorio as string) || scheduled.canivete_repertorio,
     palavras_do_dia: rawPalavras,
-    questoes: rawQuestoes,
+    questoes: normalizedQuestoes,
   };
 }
 

@@ -1,0 +1,4 @@
+# Ignorar arquivos de documentação e backups no Apps Script
+**/*.md
+**/Code.original.js
+**/backup/**

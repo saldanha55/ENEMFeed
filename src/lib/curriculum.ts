@@ -1,4 +1,4 @@
-import type { DailyContent, Disciplina } from "@/types";
+import type { DailyContent, Disciplina, VisualContent } from "@/types";
 import { parseDateString, isDateSunday, getTodayString } from "@/lib/utils";
 
 export interface ScheduledTopic {
@@ -6,6 +6,7 @@ export interface ScheduledTopic {
   topico_principal: string;
   semana: string;
   contexto_visual: string;
+  visual?: VisualContent | null;
   canivete_repertorio: string;
   palavras_do_dia: {
     palavra: string;
@@ -16,6 +17,7 @@ export interface ScheduledTopic {
     id: number;
     ano_origem: string;
     enunciado: string;
+    visual?: VisualContent | null;
     alternativas: {
       A: string;
       B: string;
@@ -114,6 +116,33 @@ export const CURRICULUM_BANK: ScheduledTopic[] = [
     semana: "Matemática · Semana 1",
     contexto_visual:
       "A proporcionalidade direta e inversa é o conteúdo mais cobrado em toda a prova de Matemática do ENEM. Dominar escalas de mapas, conversão de unidades e regras de três garante de 6 a 10 questões rápidas no exame.",
+    visual: {
+      tipo: "svg",
+      conteudo: `<svg viewBox="0 0 400 180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="380" height="160" rx="16" fill="rgba(59, 130, 246, 0.05)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4 4" />
+  <text x="30" y="45" font-family="sans-serif" font-size="13" font-weight="bold" fill="#3b82f6">ESCALA: 1 cm no mapa = 5 km no real</text>
+  <line x1="30" y1="75" x2="350" y2="75" stroke="#3b82f6" stroke-width="4" stroke-linecap="round" />
+  <line x1="30" y1="65" x2="30" y2="85" stroke="#3b82f6" stroke-width="3" />
+  <line x1="110" y1="65" x2="110" y2="85" stroke="#3b82f6" stroke-width="3" />
+  <line x1="190" y1="65" x2="190" y2="85" stroke="#3b82f6" stroke-width="3" />
+  <line x1="270" y1="65" x2="270" y2="85" stroke="#3b82f6" stroke-width="3" />
+  <line x1="350" y1="65" x2="350" y2="85" stroke="#3b82f6" stroke-width="3" />
+  <text x="25" y="105" font-family="sans-serif" font-size="11" fill="currentColor">0</text>
+  <text x="100" y="105" font-family="sans-serif" font-size="11" fill="currentColor">5 km</text>
+  <text x="180" y="105" font-family="sans-serif" font-size="11" fill="currentColor">10 km</text>
+  <text x="260" y="105" font-family="sans-serif" font-size="11" fill="currentColor">15 km</text>
+  <text x="340" y="105" font-family="sans-serif" font-size="11" fill="currentColor">20 km</text>
+  <rect x="30" y="125" width="340" height="30" rx="8" fill="url(#gradBar)" />
+  <text x="200" y="145" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#ffffff">Conversão: cm → m (corta 2 zeros) | m → km (corta 3 zeros)</text>
+</svg>`,
+      legenda: "Esquema visual de leitura de escalas cartográficas e conversão métrica",
+    },
     canivete_repertorio:
       "Dica de ouro: Em problemas de escala (1:E), lembre-se que para áreas a proporção é ao quadrado (1:E²) e para volumes é ao cubo (1:E³).",
     palavras_do_dia: [
@@ -139,6 +168,21 @@ export const CURRICULUM_BANK: ScheduledTopic[] = [
         ano_origem: "ENEM 2022",
         enunciado:
           "Um mapa de escala 1 : 500.000 apresenta duas cidades separadas por uma distância gráfica de 4 cm. Qual é a distância real, em quilômetros, entre essas duas cidades?",
+        visual: {
+          tipo: "svg",
+          conteudo: `<svg viewBox="0 0 360 120" xmlns="http://www.w3.org/2000/svg">
+  <rect x="5" y="5" width="350" height="110" rx="12" fill="rgba(59, 130, 246, 0.04)" stroke="#93c5fd" stroke-width="1.5" />
+  <circle cx="50" cy="60" r="10" fill="#3b82f6" />
+  <text x="50" y="90" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="currentColor">Cidade A</text>
+  <line x1="65" y1="60" x2="295" y2="60" stroke="#3b82f6" stroke-width="2.5" stroke-dasharray="6 4" />
+  <rect x="145" y="45" width="70" height="30" rx="6" fill="#3b82f6" />
+  <text x="180" y="65" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#ffffff">4 cm</text>
+  <circle cx="310" cy="60" r="10" fill="#ef4444" />
+  <text x="310" y="90" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="currentColor">Cidade B</text>
+  <text x="180" y="25" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600" fill="#64748b">Escala gráfica: 1 : 500.000</text>
+</svg>`,
+          legenda: "Distância gráfica entre Cidade A e Cidade B (4 cm)",
+        },
         alternativas: {
           A: "2 km",
           B: "20 km",
@@ -568,6 +612,7 @@ export function getCurriculumForDate(dateStr: string): DailyContent {
     disciplina: template.disciplina,
     topico_principal: template.topico_principal,
     contexto_visual: template.contexto_visual,
+    visual: template.visual ?? null,
     canivete_repertorio: template.canivete_repertorio,
     palavras_do_dia: template.palavras_do_dia,
     questoes: template.questoes,

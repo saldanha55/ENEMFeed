@@ -8,7 +8,6 @@ import { getTodayString, getYesterdayString, getDaysBetween, getEffectiveStudyDa
 import { inferTopicAndDisciplina, getAllCalendarDays } from "@/lib/curriculum";
 
 const HISTORY_KEY = "enem_history";
-const STREAK_KEY = "enem_streak";
 
 // ─── History ────────────────────────────────────────────────────────────────
 
@@ -90,31 +89,8 @@ export function markDayCompleted(
 
 // ─── Streak ─────────────────────────────────────────────────────────────────
 
-function defaultStreak(): StreakData {
-  return {
-    current: 0,
-    lastCompletedDate: null,
-    longestStreak: 0,
-    catchUpUsedFor: null,
-  };
-}
-
-export function getStreak(): StreakData {
-  try {
-    const raw = localStorage.getItem(STREAK_KEY);
-    return raw ? { ...defaultStreak(), ...JSON.parse(raw) } : defaultStreak();
-  } catch {
-    return defaultStreak();
-  }
-}
-
-export function saveStreak(data: StreakData): void {
-  try {
-    localStorage.setItem(STREAK_KEY, JSON.stringify(data));
-  } catch {
-    // ignore
-  }
-}
+import { defaultStreak, getStreak, saveStreak } from "@/lib/streak";
+export { defaultStreak, getStreak, saveStreak };
 
 /**
  * Updates streak when a day is completed.

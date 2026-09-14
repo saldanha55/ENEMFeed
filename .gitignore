@@ -36,6 +36,7 @@ public/workbox-*.js
 public/workbox-*.js.map
 public/worker-*.js
 public/fallback-*.js
+public/swe-worker-*.js
 
 # Diagnostic & Cache
 .turbo
@@ -53,6 +54,9 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Clasp auth credentials
+.clasprc.json
 
 # Caso queira ignorar o próprio .gitignore (descomente a linha abaixo):
 # .gitignore

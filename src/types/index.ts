@@ -4,10 +4,17 @@ export interface WordOfDay {
   exemplo: string;
 }
 
+export interface VisualContent {
+  tipo: "svg" | "imagem" | "nenhum";
+  conteudo?: string;
+  legenda?: string;
+}
+
 export interface Question {
   id: number;
   ano_origem: string;
   enunciado: string;
+  visual?: VisualContent | null;
   alternativas: {
     A: string;
     B: string;
@@ -32,6 +39,7 @@ export interface DailyContent {
   topico_principal: string;
   palavras_do_dia: WordOfDay[];
   contexto_visual: string;
+  visual?: VisualContent | null;
   canivete_repertorio: string;
   questoes: Question[];
 }

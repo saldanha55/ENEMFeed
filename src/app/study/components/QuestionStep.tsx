@@ -5,6 +5,7 @@ import { CheckCircle2, XCircle, ChevronRight, Sparkles } from "lucide-react";
 import type { Question } from "@/types";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { VisualRenderer } from "@/components/ui/VisualRenderer";
 import { cn } from "@/lib/utils";
 import type { AlternativeKey } from "@/types";
 import { fireHeartBurst } from "@/lib/confetti";
@@ -113,9 +114,20 @@ export function QuestionStep({
 
       {/* Enunciado */}
       <Card>
-        <p className="text-gray-800 dark:text-gray-200 leading-relaxed text-sm whitespace-pre-wrap">
-          {question.enunciado}
-        </p>
+        <div className="space-y-4">
+          <p className="text-gray-800 dark:text-gray-200 leading-relaxed text-sm whitespace-pre-wrap">
+            {question.enunciado}
+          </p>
+
+          {/* Figura / Gráfico associado à questão */}
+          {question.visual && (
+            <VisualRenderer
+              visual={question.visual}
+              accentColor={accentColor}
+              compact
+            />
+          )}
+        </div>
       </Card>
 
       {/* Alternativas */}

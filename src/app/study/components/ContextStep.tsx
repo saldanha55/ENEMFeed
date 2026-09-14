@@ -4,6 +4,7 @@ import type { DailyContent } from "@/types";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { AnimatedPage } from "@/components/ui/AnimatedPage";
+import { VisualRenderer } from "@/components/ui/VisualRenderer";
 
 interface ContextStepProps {
   content: DailyContent;
@@ -36,6 +37,14 @@ export function ContextStep({
             </p>
           </div>
         </div>
+
+        {/* Visual (SVG ou Imagem) quando disponível */}
+        {content.visual && (
+          <VisualRenderer
+            visual={content.visual}
+            accentColor={accentColor}
+          />
+        )}
 
         {/* Main context */}
         <Card>

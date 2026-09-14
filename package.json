@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "apps:push": "clasp push --force",
+    "apps:pull": "clasp pull"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -20,6 +22,7 @@
     "tailwind-merge": "^2.4.0"
   },
   "devDependencies": {
+    "@google/clasp": "^3.4.1",
     "@types/canvas-confetti": "^1.6.4",
     "@types/node": "^20",
     "@types/react": "^19",

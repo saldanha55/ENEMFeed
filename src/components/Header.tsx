@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { Home, History, BookOpen } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { StreakBadge } from "@/components/ui/StreakBadge";
-import { getStreak } from "@/lib/progress";
+import { getStreak } from "@/lib/streak";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { StreakData } from "@/types";
