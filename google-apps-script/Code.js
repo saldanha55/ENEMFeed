@@ -90,14 +90,32 @@ function gerarConteudoDiario() {
       const status = dados[i][4];
       const disciplina = dados[i][2];
       const topico = dados[i][3];
+      const jsonStr = dados[i][5];
 
-      if (status !== "Concluído" && topico) {
+      let jsonValido = false;
+      if (status === "Concluído" && jsonStr) {
+        try {
+          let limpo = String(jsonStr).trim();
+          if (limpo.startsWith("```json")) limpo = limpo.substring(7);
+          if (limpo.startsWith("```")) limpo = limpo.substring(3);
+          if (limpo.endsWith("```")) limpo = limpo.substring(0, limpo.length - 3);
+          const parsed = JSON.parse(limpo.trim());
+          if (parsed && Array.isArray(parsed.questoes) && parsed.questoes.length > 0) {
+            jsonValido = true;
+          }
+        } catch (e) {
+          jsonValido = false;
+        }
+      }
+
+      // Se não estiver concluído OU se o JSON salvo estiver corrompido/inválido:
+      if ((status !== "Concluído" || !jsonValido) && topico) {
         if (geradosCount > 0) Utilities.sleep(2500); // Pausa para não estourar rate limit da API
-        Logger.log("⏳ Preenchendo pendência até a data atual (" + dataFormatada + " - " + topico + ")...");
+        Logger.log("⏳ Preenchendo/reparando conteúdo (" + dataFormatada + " - " + topico + ")...");
         processarLinha(sheet, i, disciplina, topico);
         geradosCount++;
-      } else if (status === "Concluído") {
-        Logger.log("ℹ️ Linha " + dataFormatada + " já concluída.");
+      } else if (status === "Concluído" && jsonValido) {
+        Logger.log("ℹ️ Linha " + dataFormatada + " já concluída e validada.");
       }
     }
   }
@@ -130,8 +148,20 @@ function gerarConteudoDiario() {
 function processarLinha(sheet, rowIndex, disciplina, topico) {
   try {
     const conteudoJson = chamarGemini(disciplina, topico);
-    sheet.getRange(rowIndex + 1, 6).setValue(conteudoJson);
+    let limpo = String(conteudoJson).trim();
+    if (limpo.startsWith("```json")) limpo = limpo.substring(7);
+    if (limpo.startsWith("```")) limpo = limpo.substring(3);
+    if (limpo.endsWith("```")) limpo = limpo.substring(0, limpo.length - 3);
+    
+    // Valida sintaxe JSON antes de gravar na planilha
+    const parsed = JSON.parse(limpo.trim());
+    if (!parsed.questoes || parsed.questoes.length === 0) {
+      throw new Error("JSON gerado não contém lista de questões válida.");
+    }
+
+    sheet.getRange(rowIndex + 1, 6).setValue(limpo.trim());
     sheet.getRange(rowIndex + 1, 5).setValue("Concluído");
+    Logger.log("✅ Linha " + (rowIndex + 1) + " gravada e validada com sucesso!");
   } catch (err) {
     Logger.log("❌ Erro ao processar linha " + (rowIndex + 1) + ": " + err.message);
   }
@@ -291,7 +321,11 @@ function doGet(e) {
     let item = {};
     if (jsonStr) {
       try {
-        item = JSON.parse(jsonStr);
+        let limpo = String(jsonStr).trim();
+        if (limpo.startsWith("```json")) limpo = limpo.substring(7);
+        if (limpo.startsWith("```")) limpo = limpo.substring(3);
+        if (limpo.endsWith("```")) limpo = limpo.substring(0, limpo.length - 3);
+        item = JSON.parse(limpo.trim());
       } catch (err) {
         item = {};
       }
@@ -311,6 +345,46 @@ function doGet(e) {
         itemHoje = item;
       }
     }
+  }
+
+  // 0. Modo Diagnóstico / Debug (?debug=true)
+  if (e && e.parameter && e.parameter.debug) {
+    const debugLinhas = [];
+    for (let i = 1; i < dados.length; i++) {
+      const rawData = dados[i][0];
+      const jsonStr = dados[i][5];
+      let parseOk = false;
+      let erroParse = null;
+      let qCount = 0;
+      if (jsonStr) {
+        try {
+          let limpo = String(jsonStr).trim();
+          if (limpo.startsWith("```json")) limpo = limpo.substring(7);
+          if (limpo.startsWith("```")) limpo = limpo.substring(3);
+          if (limpo.endsWith("```")) limpo = limpo.substring(0, limpo.length - 3);
+          const p = JSON.parse(limpo.trim());
+          parseOk = true;
+          qCount = (p.questoes && p.questoes.length) || 0;
+        } catch (err) {
+          erroParse = err.message;
+        }
+      }
+      debugLinhas.push({
+        linha: i + 1,
+        dataRaw: String(rawData),
+        dataNorm: normalizarDataStr(rawData),
+        disciplina: dados[i][2],
+        topico: dados[i][3],
+        status: dados[i][4],
+        temJson: Boolean(jsonStr),
+        jsonLen: jsonStr ? String(jsonStr).length : 0,
+        parseOk: parseOk,
+        erroParse: erroParse,
+        questoesCount: qCount
+      });
+    }
+    return ContentService.createTextOutput(JSON.stringify({ hoje: hoje, totalRowsInSheet: dados.length, debugLinhas: debugLinhas }, null, 2))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   // 1. Se o app pedir uma data específica (ex: ?data=18/08/2026)
