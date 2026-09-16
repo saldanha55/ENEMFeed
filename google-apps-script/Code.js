@@ -15,58 +15,96 @@ const GEMINI_API_KEY = PropertiesService.getScriptProperties().getProperty("GEMI
 const GEMINI_MODEL = "gemini-3.6-flash";
 
 /**
+ * Converte qualquer formato de data da célula (Date ou 'dd/MM/yyyy')
+ * para um número no formato YYYYMMDD para comparação temporal segura.
+ */
+function obterDataNumero(val) {
+  if (!val) return null;
+  if (val instanceof Date) {
+    return parseInt(Utilities.formatDate(val, "America/Sao_Paulo", "yyyyMMdd"), 10);
+  }
+  const str = String(val).trim();
+  const partes = str.split("/");
+  if (partes.length === 3) {
+    const dia = partes[0].padStart(2, "0");
+    const mes = partes[1].padStart(2, "0");
+    const ano = partes[2].trim();
+    return parseInt("" + ano + mes + dia, 10);
+  }
+  return null;
+}
+
+/**
  * Função acionada diariamente por acionador (trigger) ou manualmente.
- * Gera o conteúdo do dia e adianta o próximo dia pendente na planilha.
+ * 1. Verifica se TUDO até a data atual (inclusive hoje e dias anteriores pendentes) está preenchido.
+ *    Se houver pendência, preenche linha por linha.
+ * 2. Adianta o próximo dia de estudo na sequência da planilha.
  */
 function gerarConteudoDiario() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const dados = sheet.getDataRange().getValues();
-  const hoje = Utilities.formatDate(new Date(), "America/Sao_Paulo", "dd/MM/yyyy");
+  const hojeStr = Utilities.formatDate(new Date(), "America/Sao_Paulo", "dd/MM/yyyy");
+  const hojeNum = parseInt(Utilities.formatDate(new Date(), "America/Sao_Paulo", "yyyyMMdd"), 10);
   
-  let linhaHojeIndex = -1;
-  let geradosHojeCount = 0;
+  let geradosCount = 0;
+  let ultimoIndiceProcessadoOuHoje = -1;
 
-  // 1. Procura a linha de HOJE
+  Logger.log("🔍 Verificando se tudo até a data atual (" + hojeStr + ") está preenchido...");
+
+  // 1. Percorre todas as linhas e preenche qualquer conteúdo pendente até hoje
   for (let i = 1; i < dados.length; i++) {
-    let dataCel = dados[i][0];
+    const dataCel = dados[i][0];
+    if (!dataCel) continue;
+
+    const dataNum = obterDataNumero(dataCel);
+    if (!dataNum) continue;
+
     let dataFormatada = dataCel instanceof Date 
       ? Utilities.formatDate(dataCel, "America/Sao_Paulo", "dd/MM/yyyy") 
       : String(dataCel).trim();
 
-    if (dataFormatada === hoje) {
-      linhaHojeIndex = i;
+    // Linha com data menor ou igual a hoje
+    if (dataNum <= hojeNum) {
+      ultimoIndiceProcessadoOuHoje = i;
       const status = dados[i][4];
+      const disciplina = dados[i][2];
+      const topico = dados[i][3];
 
-      if (status !== "Concluído") {
-        Logger.log("⏳ Gerando conteúdo de HOJE (" + dataFormatada + ")...");
-        processarLinha(sheet, i, dados[i][2], dados[i][3]);
-        geradosHojeCount++;
-      } else {
-        Logger.log("ℹ️ O conteúdo de HOJE (" + dataFormatada + ") já estava concluído.");
+      if (status !== "Concluído" && topico) {
+        if (geradosCount > 0) Utilities.sleep(2500); // Pausa para não estourar rate limit da API
+        Logger.log("⏳ Preenchendo pendência até a data atual (" + dataFormatada + " - " + topico + ")...");
+        processarLinha(sheet, i, disciplina, topico);
+        geradosCount++;
+      } else if (status === "Concluído") {
+        Logger.log("ℹ️ Linha " + dataFormatada + " já concluída.");
       }
-      break;
     }
   }
 
-  // 2. Procura a PRÓXIMA linha pendente na sequência da planilha (o próximo dia de estudo)
-  const inicioBusca = linhaHojeIndex !== -1 ? linhaHojeIndex + 1 : 1;
+  // 2. Procura a PRÓXIMA linha pendente na sequência da planilha (o próximo dia de estudo a ser adiantado)
+  const inicioBusca = ultimoIndiceProcessadoOuHoje !== -1 ? ultimoIndiceProcessadoOuHoje + 1 : 1;
 
   for (let i = inicioBusca; i < dados.length; i++) {
     const status = dados[i][4];
-    let dataCel = dados[i][0];
+    const disciplina = dados[i][2];
+    const topico = dados[i][3];
+    const dataCel = dados[i][0];
+
     let dataFormatada = dataCel instanceof Date 
       ? Utilities.formatDate(dataCel, "America/Sao_Paulo", "dd/MM/yyyy") 
       : String(dataCel).trim();
 
-    if (status !== "Concluído" && dados[i][3]) { // tem tópico e está pendente
-      if (geradosHojeCount > 0) Utilities.sleep(2500); // Pausa para não estourar rate limit
-      
-      Logger.log("⏳ Adiantando próximo dia de estudo (" + dataFormatada + " - " + dados[i][3] + ")...");
-      processarLinha(sheet, i, dados[i][2], dados[i][3]);
+    if (status !== "Concluído" && topico) {
+      if (geradosCount > 0) Utilities.sleep(2500);
+      Logger.log("⏳ Adiantando próximo dia de estudo (" + dataFormatada + " - " + topico + ")...");
+      processarLinha(sheet, i, disciplina, topico);
       Logger.log("✅ Próximo dia adiantado com sucesso!");
+      geradosCount++;
       break; // Adiantou 1 dia com sucesso, encerra a execução
     }
   }
+
+  Logger.log("🏁 Execução concluída. Total de cadernos gerados nesta rodada: " + geradosCount);
 }
 
 // Função auxiliar para chamar a IA e gravar na planilha
