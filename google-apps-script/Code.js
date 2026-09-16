@@ -15,6 +15,27 @@ const GEMINI_API_KEY = PropertiesService.getScriptProperties().getProperty("GEMI
 const GEMINI_MODEL = "gemini-3.6-flash";
 
 /**
+ * Normaliza qualquer formato de data da célula para a string 'DD/MM/YYYY'.
+ * Trata objetos Date, '16/9/2026', '16/09/26', espaços e variações.
+ */
+function normalizarDataStr(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, "America/Sao_Paulo", "dd/MM/yyyy");
+  }
+  const str = String(val).trim();
+  const partes = str.split("/");
+  if (partes.length === 3) {
+    const dia = partes[0].trim().padStart(2, "0");
+    const mes = partes[1].trim().padStart(2, "0");
+    let ano = partes[2].trim();
+    if (ano.length === 2) ano = "20" + ano;
+    return `${dia}/${mes}/${ano}`;
+  }
+  return str;
+}
+
+/**
  * Converte qualquer formato de data da célula (Date ou 'dd/MM/yyyy')
  * para um número no formato YYYYMMDD para comparação temporal segura.
  */
@@ -26,9 +47,10 @@ function obterDataNumero(val) {
   const str = String(val).trim();
   const partes = str.split("/");
   if (partes.length === 3) {
-    const dia = partes[0].padStart(2, "0");
-    const mes = partes[1].padStart(2, "0");
-    const ano = partes[2].trim();
+    const dia = partes[0].trim().padStart(2, "0");
+    const mes = partes[1].trim().padStart(2, "0");
+    let ano = partes[2].trim();
+    if (ano.length === 2) ano = "20" + ano;
     return parseInt("" + ano + mes + dia, 10);
   }
   return null;
@@ -41,7 +63,8 @@ function obterDataNumero(val) {
  * 2. Adianta o próximo dia de estudo na sequência da planilha.
  */
 function gerarConteudoDiario() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheets()[0];
   const dados = sheet.getDataRange().getValues();
   const hojeStr = Utilities.formatDate(new Date(), "America/Sao_Paulo", "dd/MM/yyyy");
   const hojeNum = parseInt(Utilities.formatDate(new Date(), "America/Sao_Paulo", "yyyyMMdd"), 10);
@@ -59,9 +82,7 @@ function gerarConteudoDiario() {
     const dataNum = obterDataNumero(dataCel);
     if (!dataNum) continue;
 
-    let dataFormatada = dataCel instanceof Date 
-      ? Utilities.formatDate(dataCel, "America/Sao_Paulo", "dd/MM/yyyy") 
-      : String(dataCel).trim();
+    let dataFormatada = normalizarDataStr(dataCel);
 
     // Linha com data menor ou igual a hoje
     if (dataNum <= hojeNum) {
@@ -90,9 +111,7 @@ function gerarConteudoDiario() {
     const topico = dados[i][3];
     const dataCel = dados[i][0];
 
-    let dataFormatada = dataCel instanceof Date 
-      ? Utilities.formatDate(dataCel, "America/Sao_Paulo", "dd/MM/yyyy") 
-      : String(dataCel).trim();
+    let dataFormatada = normalizarDataStr(dataCel);
 
     if (status !== "Concluído" && topico) {
       if (geradosCount > 0) Utilities.sleep(2500);
@@ -247,7 +266,8 @@ Retorne ESTRITAMENTE um JSON puro (sem markdown \`\`\`json) no seguinte formato:
  * Serve a API consumida pelo frontend Next.js do ENEMFeed.
  */
 function doGet(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheets()[0];
   const dados = sheet.getDataRange().getValues();
   const hoje = Utilities.formatDate(new Date(), "America/Sao_Paulo", "dd/MM/yyyy");
   
@@ -259,12 +279,7 @@ function doGet(e) {
     const rawData = dados[i][0];
     if (!rawData) continue;
 
-    let dataFormatada = "";
-    if (rawData instanceof Date) {
-      dataFormatada = Utilities.formatDate(rawData, "America/Sao_Paulo", "dd/MM/yyyy");
-    } else {
-      dataFormatada = String(rawData).trim();
-    }
+    const dataFormatada = normalizarDataStr(rawData);
 
     // Lê os campos de cada coluna
     const semana = dados[i][1] ? String(dados[i][1]).trim() : "Conteúdo do Dia";
