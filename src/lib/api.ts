@@ -6,7 +6,7 @@ const API_URL =
   "https://script.google.com/macros/s/AKfycbyucNEaUN1uBd18Fea-qomNGjCqD9RJjlRIKBxyNYSMKWlA3YEYVbNEV9F1Nep8Hcu_/exec";
 
 // Bump this version whenever normalization logic changes, to force cache invalidation.
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const CACHE_KEY = `enem_cached_content_${CACHE_VERSION}`;
 const CACHE_DATE_KEY = `enem_cached_date_${CACHE_VERSION}`;
 
@@ -187,40 +187,36 @@ export function saveCachedContent(date: string, content: DailyContent): void {
 export async function fetchDailyContent(targetDate?: string): Promise<DailyContent> {
   const date = targetDate ?? getTodayString();
 
-  // Return cached or history content if valid
-  const localCached = getCachedContent(date);
-  if (localCached) {
-    return localCached;
-  }
-
-  // If target date is Sunday, Sunday has no mandatory API content
+  // Se for domingo, domingo não possui novo conteúdo obrigatório
   if (isDateSunday(date)) {
     throw new Error("Domingo é dia de descanso. Sem novo conteúdo.");
   }
 
-  // Fetch from API
+  // 1. Tenta buscar da API primeiro para garantir que alterações na planilha apareçam imediatamente
   try {
-    const isToday = date === getTodayString();
-    const url = isToday ? API_URL : `${API_URL}?data=${encodeURIComponent(date)}`;
+    const url = `${API_URL}?data=${encodeURIComponent(date)}`;
     const response = await fetch(url, {
       method: "GET",
       cache: "no-store",
     });
 
-    if (!response.ok) {
-      throw new Error(`Erro na API (${response.status})`);
-    }
-
-    const rawData = await response.json();
-
-    if (isValidDailyContent(rawData)) {
-      const data = normalizeDailyContent(rawData as Record<string, unknown>, date);
-      saveCachedContent(date, data);
-      saveAvailableDates([date]);
-      return data;
+    if (response.ok) {
+      const rawData = await response.json();
+      if (isValidDailyContent(rawData)) {
+        const data = normalizeDailyContent(rawData as Record<string, unknown>, date);
+        saveCachedContent(date, data);
+        saveAvailableDates([date]);
+        return data;
+      }
     }
   } catch {
-    // API failed or returned error message
+    // Falha de rede / offline
+  }
+
+  // 2. Se a rede falhar (ex: offline ou erro temporário), usa o cache local
+  const localCached = getCachedContent(date);
+  if (localCached) {
+    return localCached;
   }
 
   throw new Error("Conteúdo não encontrado para esta data na planilha.");

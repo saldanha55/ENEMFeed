@@ -53,14 +53,13 @@ function StudyPageInner() {
   const requestedDate = searchParams.get("date");
   
   // If today is Sunday and no explicit date requested, default to the last study day (Saturday or earlier)
-  // If today is NOT Sunday but yesterday is Sunday (e.g. Monday), catch-up also uses last study day
+  // Otherwise, default to today
   const isTodaySunday = isSunday();
   const todayStr = getTodayString();
   const yesterdayStr = getYesterdayString();
-  const isYesterdaySunday = isDateSunday(yesterdayStr);
 
   const targetDate = requestedDate ?? (
-    isTodaySunday || isYesterdaySunday
+    isTodaySunday
       ? getLastStudyDayString()
       : todayStr
   );

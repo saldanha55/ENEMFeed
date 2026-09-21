@@ -1,5 +1,5 @@
 import type { DailyContent, Disciplina, VisualContent } from "@/types";
-import { parseDateString, isDateSunday, getTodayString } from "@/lib/utils";
+import { parseDateString, isDateSunday, getTodayString, getYesterdayString, getLastStudyDayString } from "@/lib/utils";
 
 export interface ScheduledTopic {
   disciplina: Disciplina;
@@ -760,23 +760,24 @@ import { getHistory } from "@/lib/progress";
  */
 export function isDateAvailableForStudy(dateStr: string): boolean {
   try {
+    const today = getTodayString();
+    // Today is always available for study (unless it's Sunday, but Sunday has its own rest screen)
+    if (dateStr === today) return true;
+
+    // Yesterday and the most recent study day (e.g. Saturday when today is Monday or Sunday)
+    // are always allowed for catch-up and review.
+    const yesterday = getYesterdayString();
+    const lastStudyDay = getLastStudyDayString();
+    if (dateStr === yesterday || dateStr === lastStudyDay) return true;
+
     const historyDates = Object.keys(getHistory());
     const spreadsheetDates = getStoredAvailableDates();
     const knownSet = new Set([...historyDates, ...spreadsheetDates]);
 
-    if (knownSet.size > 0) {
-      return knownSet.has(dateStr);
+    if (knownSet.has(dateStr)) {
+      return true;
     }
 
-    // If nothing synced yet, allow today and yesterday (but not Sundays)
-    const today = getTodayString();
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    const yesterday = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-    const isYesterdaySunday = d.getDay() === 0;
-
-    if (dateStr === today) return true;
-    if (dateStr === yesterday && !isYesterdaySunday) return true;
     return false;
   } catch {
     return false;

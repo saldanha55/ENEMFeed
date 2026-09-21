@@ -17,6 +17,7 @@ import {
   Coffee,
 } from "lucide-react";
 import { useDailyContent } from "@/hooks/useDailyContent";
+import { syncSpreadsheetDates } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StreakBadge } from "@/components/ui/StreakBadge";
@@ -53,7 +54,6 @@ export default function HomePage() {
   const { content, isLoading, error, refetch, loadSampleContent } = useDailyContent();
   const [streak, setStreak] = useState<StreakData | null>(null);
   const [todayCompleted, setTodayCompleted] = useState(false);
-  const [yesterdayCompleted, setYesterdayCompleted] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [showBirthdayPhoto, setShowBirthdayPhoto] = useState(true);
   const [wrongCount, setWrongCount] = useState(0);
@@ -63,11 +63,12 @@ export default function HomePage() {
   useEffect(() => {
     setMounted(true);
     const today = getTodayString();
-    const yesterday = getYesterdayString();
     setStreak(getStreak());
     setTodayCompleted(isDayCompleted(today));
-    setYesterdayCompleted(isDayCompleted(yesterday));
     setWrongCount(getAllWrongAnswers().length);
+
+    // Sync spreadsheet dates in the background so calendar & catch-up are always up to date
+    syncSpreadsheetDates().catch(() => {});
 
     if (isBirthday()) {
       const timer = setTimeout(() => {
@@ -126,7 +127,9 @@ export default function HomePage() {
 
   const history = getHistory();
   const completedDays = Object.values(history).filter((r) => r.completedAt).length;
-  const canCatchUp = !yesterdayCompleted && streak && streak.current > 0;
+  const catchUpTargetDate = isDateSunday(yesterday) ? getLastStudyDayString() : yesterday;
+  const catchUpCompleted = isDayCompleted(catchUpTargetDate);
+  const canCatchUp = !catchUpCompleted && streak && streak.current > 0;
 
   return (
     <AnimatedPage direction="up">
@@ -344,7 +347,7 @@ export default function HomePage() {
                 </Link>
               </div>
             ) : (
-              <Link href="/study">
+              <Link href={`/study?date=${encodeURIComponent(content?.data || getTodayString())}`}>
                 <Button fullWidth size="lg">
                   <PlayCircle size={20} />
                   Começar estudo
@@ -355,7 +358,7 @@ export default function HomePage() {
         )}
 
         {/* Catch-up banner for weekdays */}
-        {!isTodaySunday && canCatchUp && !isDateSunday(yesterday) && (
+        {!isTodaySunday && canCatchUp && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -365,11 +368,11 @@ export default function HomePage() {
               ⏰ Modo Recuperação disponível
             </p>
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              Você perdeu o caderno de {formatDisplayDate(yesterday)}. Complete agora para preservar sua ofensiva!
+              Você perdeu o caderno de {formatDisplayDate(catchUpTargetDate)}. Complete agora para preservar sua ofensiva!
             </p>
-            <Link href={`/study?date=${encodeURIComponent(yesterday)}`}>
+            <Link href={`/study?date=${encodeURIComponent(catchUpTargetDate)}`}>
               <Button variant="secondary" size="sm" fullWidth>
-                Recuperar caderno de {formatDisplayDate(yesterday)}
+                Recuperar caderno de {formatDisplayDate(catchUpTargetDate)}
               </Button>
             </Link>
           </motion.div>

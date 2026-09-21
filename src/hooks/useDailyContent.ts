@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { DailyContent } from "@/types";
-import { fetchDailyContent, getCachedContent, setSampleCachedContent } from "@/lib/api";
+import { fetchDailyContent, getCachedContent, setSampleCachedContent, syncSpreadsheetDates } from "@/lib/api";
 import { getTodayString, isDateSunday } from "@/lib/utils";
 
 interface UseDailyContentResult {
@@ -34,7 +34,7 @@ export function useDailyContent(targetDate?: string): UseDailyContentResult {
       return;
     }
 
-    // Check cached content first
+    // Check cached content first for 0ms UI render
     const cached = getCachedContent(date);
     if (cached) {
       setContent(cached);
@@ -46,6 +46,8 @@ export function useDailyContent(targetDate?: string): UseDailyContentResult {
         if (!cancelled) {
           setContent(data);
           setIsLoading(false);
+          // Sync catalog dates in background
+          syncSpreadsheetDates().catch(() => {});
         }
       })
       .catch((err: Error) => {
